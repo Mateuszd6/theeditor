@@ -77,7 +77,7 @@ main()
         {
             win.draw_rect(0, 0, win.width, win.height, 0);
             win.draw_rect(32, 32, 128, 128, 1);
-            win.draw_text(64 + 128, 64, 3, "Hello world!");
+            win.draw_text(64 + 128, 64, "Hello world!", 3);
 
             win.flush();
         }
@@ -97,7 +97,7 @@ main()
 #endif
 
         // This will give us about 16ms speed.
-        std::this_thread::sleep_for(1s - elapsed);
+        std::this_thread::sleep_for(chrono::milliseconds(16) - elapsed);
     }
 
     win.free_scheme();

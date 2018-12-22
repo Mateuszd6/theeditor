@@ -103,7 +103,7 @@ xwindow::draw_rect(int x, int y, int w, int h, int colorid)
 }
 
 void
-xwindow::draw_text(int x, int y, int colorid, char const* txt)
+xwindow::draw_text(int x, int y, char const* txt, int colorid)
 {
     XftDrawStringUtf8(draw, scm[colorid], font,
                       x, y,

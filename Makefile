@@ -1,7 +1,7 @@
 .PHONY: all debug release clean clang_complete
 
 CC=clang++
-CFLAGS=-std=c++14 -fno-exceptions -fno-rtti
+CFLAGS=-std=c++11 -fno-exceptions -fno-rtti
 
 DISABLED_WARNINGS=-Wno-padded \
                   -Wno-format-nonliteral \
@@ -12,7 +12,6 @@ ifeq ($(CC),clang++)
 	WARN_FLAGS=-Weverything
 	DISABLED_WARNINGS += -Wno-c++98-compat-pedantic \
 			     -Wno-gnu-zero-variadic-macro-arguments
-
 else
 	WARN_FLAGS=-Wall -Wextra -Wshadow
 endif

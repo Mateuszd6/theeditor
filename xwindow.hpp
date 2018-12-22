@@ -1,10 +1,11 @@
-#ifndef XWINDOW_H
-#define XWINDOW_H
+#ifndef XWINDOW_HPP
+#define XWINDOW_HPP
+
 #include "config.hpp"
 
-  #include <X11/Xlib.h>
-  #include <X11/Xutil.h>
-  #include <X11/Xft/Xft.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xft/Xft.h>
 
 struct xcolorscm
 {
@@ -39,19 +40,30 @@ struct xwindow
     xwindow(int width_, int heigth_);
     ~xwindow();
 
+    // Flush the window (or part of the window) to the screen.
     void flush();
     void flush(int x, int y, int w, int h);
+
+    // This must be called on a window after the window is resized. Drawables
+    // are reallocated if the size has changed.
     void resize(int new_w, int new_h);
 
-    void draw_text(int x, int y, int colorid, char const* txt);
+    void draw_text(int x, int y, char const* txt, int colorid);
     void draw_rect(int x, int y, int w, int h, int colorid);
 
+    // Load new [num_names] of colors as the scheme. [draw_*] fucntions will now
+    // accept [colorid] value in range (0 ; num_names-1).
     void load_scheme(char const** names, mm num_names);
+
+    // Clear the current scheme and the colors. No idea what happens when you
+    // try to draw something unless you allocate new scheme.
     void free_scheme();
 
+    // Load a new xft font.
     bool load_font(char const* fontname);
-    void free_font();
 
+    // Clear the current font.
+    void free_font();
 };
 
-#endif //XWINDOW_H
+#endif // XWINDOW_HPP
