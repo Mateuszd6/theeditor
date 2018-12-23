@@ -73,6 +73,7 @@ handle_event(xwindow* win)
   x = x + glyphInfo.xOff;
   y = y + glyphInfo.yOff;
 */
+// TODO: This is horriebly slow compared to window::draw_text.
 static inline void
 blit_letter(xwindow* win, char ch,
             int32 basex, int32 basey,
@@ -128,13 +129,69 @@ main()
             win.draw_rect(16 -1 , 16 - 1, 512 + 2, 512 + 2, 1);
             win.draw_rect(16, 16, 512, 512, 0);
 
-            win.set_clamp_rect(16, 16, 512, 512);
+            // win.set_clamp_rect(16, 16, 512, 512);
             char const* lines[] = {
-                "int main()",
-                "{",
-                "    std::cout << \"Hello world!\\n\";",
-                "    return 0",
-                "}",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
+"}",
             };
 
             static auto yoffset = 0;
@@ -143,10 +200,12 @@ main()
             {
                 auto adv = 18;
                 auto next_line = 32 + yoffset + i * g::font_height;
-                for(auto p = lines[i]; *p; ++p)
-                {
+#if 0
+                for(auto p = lines[i]; *p && adv <= 512 + 16; ++p)
                     blit_letter(&win, *p, adv, next_line, &adv, (i * 191) % 5 + 1);
-                }
+#else
+                win.draw_text(adv, next_line, lines[i], (i * 191) % 10 + 1);
+#endif
             }
 
             yoffset += advance;
