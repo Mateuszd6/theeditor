@@ -32,7 +32,7 @@ typedef ssize_t mm; // TODO: Sometimes ssize_t is not defined. Fallback to
 #elif defined(__clang__)
 #  define COMPILER_CLANG 1
 #elif defined (_MSC_VER)
-#  define COMPILER_MSVC
+#  define COMPILER_MSVC 1
 #else
 #  define COMPILER_UNKNOW 1
 #endif

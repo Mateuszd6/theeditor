@@ -96,6 +96,23 @@ xwindow::resize(int new_w, int new_h)
     draw = XftDrawCreate(dpy, canvas, vis, cmap);
 }
 
+
+void
+xwindow::set_clamp_rect(int16 x, int16 y, uint16 w, uint16 h)
+{
+    auto boundrect = XRectangle{x, y, w, h};
+    auto r = XCreateRegion();
+    XUnionRectWithRegion(&boundrect, r, r);
+    XftDrawSetClip(draw, r);
+    XDestroyRegion(r);
+}
+
+void
+xwindow::clear_clamp_rect()
+{
+    XftDrawSetClip(draw, 0);
+}
+
 void
 xwindow::draw_rect(int x, int y, int w, int h, int colorid)
 {

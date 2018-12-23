@@ -27,6 +27,8 @@ struct xwindow
     Visual* vis;
     XftFont* font; // TODO: Dont use only one font.
     XftDraw* draw; // Xft wraps pixmap `canvas` into this.
+    Region* clamp;
+
     Drawable canvas; // pixmap used for the double buffering.
     Window win;
     Colormap cmap;
@@ -47,6 +49,9 @@ struct xwindow
     // This must be called on a window after the window is resized. Drawables
     // are reallocated if the size has changed.
     void resize(int new_w, int new_h);
+
+    void set_clamp_rect(int16 x, int16 y, uint16 w, uint16 h);
+    void clear_clamp_rect();
 
     void draw_text(int x, int y, char const* txt, int colorid);
     void draw_rect(int x, int y, int w, int h, int colorid);
