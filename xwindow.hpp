@@ -7,6 +7,8 @@
 #include <X11/Xutil.h>
 #include <X11/Xft/Xft.h>
 
+#include "strref.hpp"
+
 struct xcolorscm
 {
     static constexpr mm max_n_colors = 16;
@@ -56,8 +58,11 @@ struct xwindow
     void set_clamp_rect(int16 x, int16 y, uint16 w, uint16 h);
     void clear_clamp_rect();
 
-    void draw_text(int x, int y, char const* txt, int colorid);
     void draw_rect(int x, int y, int w, int h, int colorid);
+
+    void draw_text(int x, int y, int colorid, char const* ptr, size_t len, int* adv);
+    void draw_text(int x, int y, int colorid, char const* txt, int* adv);
+    void draw_text(int x, int y, int colorid, strref strref, int* adv);
 
     // Load new [num_names] of colors as the scheme. [draw_*] fucntions will now
     // accept [colorid] value in range (0 ; num_names-1).

@@ -27,6 +27,11 @@ namespace g
     static int32 font_ascent;
     static int32 font_descent;
     static int32 font_height;
+
+    static gap_buffer test_buffer;
+
+    static bool init = false;
+    static strref refs[2];
 }
 
 static void
@@ -68,6 +73,8 @@ handle_event(xwindow* win)
             KeySym keysym = NoSymbol;
             char text[32] = {};
 
+            static int idx = 0; // TODO: remove later.
+
 #if 0
             // if you want to tell if this was a repeated key, this trick seems reliable.
             int is_repeat = prev_ev.type         == KeyRelease &&
@@ -85,34 +92,68 @@ handle_event(xwindow* win)
 
             Xutf8LookupString(win->input_xic, &ev.xkey, text, sizeof(text) - 1, &keysym, &status);
 
-            if(status == XBufferOverflow){
+            if(status == XBufferOverflow)
+            {
                 // an IME was probably used, and wants to commit more than 32 chars.
                 // ignore this fairly unlikely case for now
             }
 
-            if(status == XLookupChars){
+            if(status == XLookupChars)
+            {
                 // some characters were returned without an associated key,
                 // again probably the result of an IME
                 LOG_WARN("Got chars: (%s)", text);
             }
 
-            if(status == XLookupBoth){
+            if(status == XLookupBoth)
+            {
                 // we got one or more characters with an associated keysym
                 // (all the keysyms are listed in /usr/include/X11/keysymdef.h)
 
-                char* sym_name = XKeysymToString(keysym);
-                printf("Got both: (%s), (%s)\n", text, sym_name);
+                // char* sym_name = XKeysymToString(keysym);
+                // printf("Got both: (%s), (%s)\n", text, sym_name);
+                g::test_buffer.insert_at_point(idx++, text[0]);
+                // LOG_INFO("BUFFER: %s", g::test_buffer.to_c_str());
+
+                g::test_buffer.to_str_refs(g::refs);
+                g::init = true;
+
+#if 0
+                printf("BUFFER: ");
+                for(auto i = 0; i < 2; ++i)
+                {
+                    for(auto p = g::refs[i].first; p != refs[i].last; ++p)
+                        printf("%c", *p);
+                    if(i == 0)
+                        printf("%c", '|');
+                }
+                printf("\n");
+#endif
             }
 
-            if(status == XLookupKeySym){
+            if(status == XLookupKeySym)
+            {
                 // a key without text on it
                 char* sym_name = XKeysymToString(keysym);
                 printf("Got keysym: (%s)\n", sym_name);
             }
 
             // example of responding to a key
-            if(keysym == XK_Escape){
+            if(keysym == XK_Escape)
+            {
                 LOG_INFO("Escape was pressed!");
+            }
+
+            if(keysym == XK_Right)
+            {
+                idx++;
+            }
+
+            if(keysym == XK_Left)
+            {
+                idx--;
+                if(idx < 0)
+                    idx = 0;
             }
         } break;
 
@@ -152,7 +193,7 @@ int
 main()
 {
     LOG_INFO("Using font: %s", g::fontname);
-
+    g::test_buffer.initialize();
 
     xwindow win{ 400, 500 };
     win.load_scheme(g::colornames, array_cnt(g::colornames));
@@ -207,9 +248,21 @@ main()
                 for(auto p = lines[i]; *p && adv <= 512 + 16; ++p)
                     blit_letter(&win, *p, adv, next_line, &adv, (i * 191) % 5 + 1);
 #else
-                win.draw_text(adv, next_line, lines[i], (i * 191) % 10 + 1);
+                win.draw_text(adv, next_line, (i * 191) % 10 + 1, lines[i], 0);
 #endif
             }
+
+            auto adv = 0;
+            auto start = 18;
+            for(auto i = 0; i < 2; ++i)
+            {
+                win.draw_text(start + adv,
+                              32 + yoffset + array_cnt(lines) * g::font_height,
+                              i + 1,
+                              g::refs[i],
+                              &adv);
+            }
+
 
             yoffset += advance;
             if(32 + yoffset + array_cnt(lines) * g::font_height >= 512)
@@ -223,7 +276,7 @@ main()
 
         auto elapsed = chrono::system_clock::now() - start;
 
-#if 0
+#if 1
         LOG_INFO("elapsed: %d",
                  s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
 #endif

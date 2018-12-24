@@ -140,12 +140,41 @@ xwindow::draw_rect(int x, int y, int w, int h, int colorid)
 }
 
 void
-xwindow::draw_text(int x, int y, char const* txt, int colorid)
+xwindow::draw_text(int x, int y, int colorid, char const* ptr, size_t len, int* adv)
 {
+    if(adv)
+    {
+        XGlyphInfo extents;
+        XftTextExtentsUtf8(dpy, font,
+                           r_cast<FcChar8 const*>(ptr),
+                           s_cast<int>(len),
+                           &extents);
+
+        *adv = extents.xOff;
+    }
+
     XftDrawStringUtf8(draw, scm[colorid], font,
                       x, y,
-                      r_cast<FcChar8 const*>(txt),
-                      s_cast<int32>(strlen(txt)));
+                      r_cast<FcChar8 const*>(ptr),
+                      s_cast<int>(len));
+}
+
+void
+xwindow::draw_text(int x, int y, int colorid, char const* txt, int* adv)
+{
+    draw_text(x, y, colorid,
+              txt,
+              s_cast<int32>(strlen(txt)),
+              adv);
+}
+
+void
+xwindow::draw_text(int x, int y, int colorid, strref strref, int* adv)
+{
+    draw_text(x, y, colorid,
+              strref.first,
+              strref.size(),
+              adv);
 }
 
 void
