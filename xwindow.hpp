@@ -34,6 +34,9 @@ struct xwindow
     Colormap cmap;
     GC gc;
 
+    XIC input_xic;
+    XIM input_xim;
+
     int scr;
     int width, height;
 

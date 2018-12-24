@@ -20,6 +20,15 @@ typedef size_t umm;
 typedef ssize_t mm; // TODO: Sometimes ssize_t is not defined. Fallback to
                     // something like ptrdiff_t?
 
+inline int8 operator"" _i8(unsigned long long liter) { return static_cast<int8>(liter); }
+inline uint8 operator"" _u8(unsigned long long liter) { return static_cast<uint8>(liter); }
+inline int16 operator"" _i16(unsigned long long liter) { return static_cast<int16>(liter); }
+inline uint16 operator"" _u16(unsigned long long liter) { return static_cast<uint16>(liter); }
+inline int32 operator"" _i32(unsigned long long liter) { return static_cast<int32>(liter); }
+inline uint32 operator"" _u32(unsigned long long liter) { return static_cast<uint32>(liter); }
+inline int64 operator"" _i64(unsigned long long liter) { return static_cast<int64>(liter); }
+inline uint64 operator"" _u64(unsigned long long liter) { return static_cast<uint64>(liter); }
+
 #define s_cast static_cast
 #define r_cast reinterpret_cast
 #define c_cast const_cast

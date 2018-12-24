@@ -11,7 +11,10 @@ DISABLED_WARNINGS=-Wno-padded \
 ifeq ($(CC),clang++)
 	WARN_FLAGS=-Weverything
 	DISABLED_WARNINGS += -Wno-c++98-compat-pedantic \
-			     -Wno-gnu-zero-variadic-macro-arguments
+			     -Wno-gnu-zero-variadic-macro-arguments \
+			     -Wno-gnu-anonymous-struct \
+			     -Wno-nested-anon-types \
+			     -Wno-vla-extension -Wno-vla
 else
 	WARN_FLAGS=-Wall -Wextra -Wshadow
 endif

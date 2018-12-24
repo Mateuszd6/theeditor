@@ -41,7 +41,27 @@ xwindow::xwindow(int width_, int heigth_)
     XSetLineAttributes(dpy, gc, 1, LineSolid, CapButt, JoinMiter);
     XClearWindow(dpy, win);
     XChangeWindowAttributes(dpy, win, 0, &wa);
-    XSelectInput(dpy, win, StructureNotifyMask);
+
+    // Input sutff:
+    // loads the XMODIFIERS environment variable to see what IME to use
+    XSetLocaleModifiers("");
+
+    input_xim = XOpenIM(dpy, 0, 0, 0);
+    if(!input_xim)
+    {
+        // fallback to internal input method
+        XSetLocaleModifiers("@im=none");
+        input_xim = XOpenIM(dpy, 0, 0, 0);
+    }
+
+    input_xic = XCreateIC(input_xim,
+                          XNInputStyle,   XIMPreeditNothing | XIMStatusNothing,
+                          XNClientWindow, win,
+                          XNFocusWindow,  win,
+                          NULL);
+
+    XSetICFocus(input_xic);
+    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | StructureNotifyMask);
     XMapWindow(dpy, win);
 }
 

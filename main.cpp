@@ -1,5 +1,7 @@
 #include "xwindow.hpp"
 
+#include "gap_buffer.hpp"
+
 #include <thread>
 
 namespace g
@@ -30,13 +32,13 @@ namespace g
 static void
 handle_event(xwindow* win)
 {
-    XEvent e;
-    XNextEvent(win->dpy, &e);
-    switch(e.type)
+    XEvent ev;
+    XNextEvent(win->dpy, &ev);
+    switch(ev.type)
     {
         case ConfigureNotify:
         {
-            auto xce = e.xconfigure;
+            auto xce = ev.xconfigure;
             LOG_WARN("CONFIGURE NOTIFY %dx%d", xce.width, xce.height);
 
             // This event type is generated for a variety of happenings, so check
@@ -54,6 +56,64 @@ handle_event(xwindow* win)
 
             // TODO: Figure out this event as it is also send then I force
             // redrawing the window.
+        } break;
+
+        case KeyPress:
+        {
+            // note: if you just want the XK_ keysym, then you can just use
+            // XLookupKeysym(&ev.xkey, 0);
+            // and ignore all the XIM / XIC / status etc stuff
+
+            Status status;
+            KeySym keysym = NoSymbol;
+            char text[32] = {};
+
+#if 0
+            // if you want to tell if this was a repeated key, this trick seems reliable.
+            int is_repeat = prev_ev.type         == KeyRelease &&
+                prev_ev.xkey.time    == ev.xkey.time &&
+                prev_ev.xkey.keycode == ev.xkey.keycode;
+#endif
+
+            // you might want to remove the control modifier, since it makes stuff return control codes
+            ev.xkey.state &= ~ControlMask;
+
+            // get text from the key.
+            // it could be multiple characters in the case an IME is used.
+            // if you only care about latin-1 input, you can use XLookupString instead
+            // and skip all the XIM / XIC setup stuff
+
+            Xutf8LookupString(win->input_xic, &ev.xkey, text, sizeof(text) - 1, &keysym, &status);
+
+            if(status == XBufferOverflow){
+                // an IME was probably used, and wants to commit more than 32 chars.
+                // ignore this fairly unlikely case for now
+            }
+
+            if(status == XLookupChars){
+                // some characters were returned without an associated key,
+                // again probably the result of an IME
+                LOG_WARN("Got chars: (%s)", text);
+            }
+
+            if(status == XLookupBoth){
+                // we got one or more characters with an associated keysym
+                // (all the keysyms are listed in /usr/include/X11/keysymdef.h)
+
+                char* sym_name = XKeysymToString(keysym);
+                printf("Got both: (%s), (%s)\n", text, sym_name);
+            }
+
+            if(status == XLookupKeySym){
+                // a key without text on it
+                char* sym_name = XKeysymToString(keysym);
+                printf("Got keysym: (%s)\n", sym_name);
+            }
+
+            // example of responding to a key
+            if(keysym == XK_Escape){
+                LOG_INFO("Escape was pressed!");
+            }
         } break;
 
         default:
@@ -131,67 +191,10 @@ main()
 
             // win.set_clamp_rect(16, 16, 512, 512);
             char const* lines[] = {
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"abcdefghijklmnoprstuwxyzABCDEFGHIJKLMNOPRSTUWXYZ01234~!@#$%^&*()__+=-][{}{}|\';'/.,,.././.,-*-/-*/-*+]",
-"}",
+                "int main()",
+                "{",
+                "    return 0;",
+                "}",
             };
 
             static auto yoffset = 0;
@@ -220,8 +223,10 @@ main()
 
         auto elapsed = chrono::system_clock::now() - start;
 
+#if 0
         LOG_INFO("elapsed: %d",
                  s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
+#endif
 
         // This will give us about 16ms speed.
         std::this_thread::sleep_for(16ms - elapsed);
@@ -233,4 +238,5 @@ main()
     return 0;
 }
 
+#include "gap_buffer.cpp"
 #include "xwindow.cpp"
