@@ -1,13 +1,14 @@
 #include "xwindow.hpp"
 
 #include "gap_buffer.hpp"
+#include "buffer.hpp"
 
 #include <thread>
 
 namespace g
 {
     // TODO: For now we'll use only one font.
-    static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
+    static constexpr char const* fontname = "DejaVu Sans Mono:size=9:antialias=true";
     static char const* colornames[] = {
         "#272822", // monokai-background
         "#F8F8F2", // monokai-foreground
@@ -194,6 +195,7 @@ main()
 {
     LOG_INFO("Using font: %s", g::fontname);
     g::test_buffer.initialize();
+    auto file_buffer = create_buffer_from_file("./main.cpp");
 
     xwindow win{ 400, 500 };
     win.load_scheme(g::colornames, array_cnt(g::colornames));
@@ -238,37 +240,21 @@ main()
                 "}",
             };
 
-            static auto yoffset = 0;
-            static auto advance = 0;
-            for(auto i = 0; i < array_cnt(lines); ++i)
+            for(auto k = 0_u64; k < file_buffer->size(); ++k)
             {
                 auto adv = 18;
-                auto next_line = 32 + yoffset + i * g::font_height;
-#if 0
-                for(auto p = lines[i]; *p && adv <= 512 + 16; ++p)
-                    blit_letter(&win, *p, adv, next_line, &adv, (i * 191) % 5 + 1);
-#else
-                win.draw_text(adv, next_line, (i * 191) % 10 + 1, lines[i], 0);
-#endif
-            }
-
-            auto adv = 0;
-            auto start = 18;
-            for(auto i = 0; i < 2; ++i)
-            {
-                win.draw_text(start + adv,
-                              32 + yoffset + array_cnt(lines) * g::font_height,
-                              i + 1,
-                              g::refs[i],
+                auto next_line = 32 + k * g::font_height;
+                strref refs[2];
+                file_buffer->get_line(k)->to_str_refs(refs);
+                win.draw_text(adv,
+                              s_cast<uint32>(next_line),
+                              (k % 10) + 1,
+                              refs[0],
                               &adv);
+
+                if(k > 50)
+                    break;
             }
-
-
-            yoffset += advance;
-            if(32 + yoffset + array_cnt(lines) * g::font_height >= 512)
-                advance *= -1;
-            if(32 + yoffset <= 16)
-                advance *= -1;
 
             win.clear_clamp_rect();
             win.flush();
@@ -291,5 +277,6 @@ main()
     return 0;
 }
 
+#include "buffer.cpp"
 #include "gap_buffer.cpp"
 #include "xwindow.cpp"
