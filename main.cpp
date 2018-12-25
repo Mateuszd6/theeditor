@@ -30,9 +30,6 @@ namespace g
     static int32 font_height;
 
     static gap_buffer test_buffer;
-
-    static bool init = false;
-    static strref refs[2];
 }
 
 static void
@@ -111,25 +108,8 @@ handle_event(xwindow* win)
                 // we got one or more characters with an associated keysym
                 // (all the keysyms are listed in /usr/include/X11/keysymdef.h)
 
-                // char* sym_name = XKeysymToString(keysym);
-                // printf("Got both: (%s), (%s)\n", text, sym_name);
-                g::test_buffer.insert_at_point(idx++, text[0]);
-                // LOG_INFO("BUFFER: %s", g::test_buffer.to_c_str());
-
-                g::test_buffer.to_str_refs(g::refs);
-                g::init = true;
-
-#if 0
-                printf("BUFFER: ");
-                for(auto i = 0; i < 2; ++i)
-                {
-                    for(auto p = g::refs[i].first; p != refs[i].last; ++p)
-                        printf("%c", *p);
-                    if(i == 0)
-                        printf("%c", '|');
-                }
-                printf("\n");
-#endif
+                char* sym_name = XKeysymToString(keysym);
+                LOG_INFO("Got both: (%s), (%s)\n", text, sym_name);
             }
 
             if(status == XLookupKeySym)
@@ -235,17 +215,30 @@ main()
             win.set_clamp_rect(16 -1 , 16 - 1,
                                s_cast<int16>(win.width - 32 + 1),
                                s_cast<int16>(win.height - 32 + 1));
+
+            static bool done = false;
+            if(!done)
+            {
+                for(auto k = 0; k <= 50; ++k)
+                {
+                    file_buffer->get_line(k)
+                        ->insert_at_point(0, '0' + s_cast<uint8>(k / 10));
+                    file_buffer->get_line(k)->insert_at_point(1, '0' + k % 10);
+                    file_buffer->get_line(k)->insert_at_point(2, ':');
+                    file_buffer->get_line(k)->insert_at_point(3, ' ');
+                }
+                done = true;
+            }
+
             for(auto k = 0_u64; k < file_buffer->size(); ++k)
             {
-                auto adv = 18;
+                auto xstart = 18;
+                auto adv = 0;
                 auto next_line = 32 + k * g::font_height;
                 strref refs[2];
                 file_buffer->get_line(k)->to_str_refs(refs);
-                win.draw_text(adv,
-                              s_cast<uint32>(next_line),
-                              (k % 10) + 1,
-                              refs[0],
-                              &adv);
+                win.draw_text(xstart + adv, s_cast<int32>(next_line), 1, refs[0], &adv);
+                win.draw_text(xstart + adv, s_cast<int32>(next_line), 2, refs[1], &adv);
 
                 if(k > 50)
                     break;
@@ -257,10 +250,8 @@ main()
 
         auto elapsed = chrono::system_clock::now() - start;
 
-#if 1
         LOG_INFO("elapsed: %d",
                  s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
-#endif
 
         // This will give us about 16ms speed.
         std::this_thread::sleep_for(16ms - elapsed);

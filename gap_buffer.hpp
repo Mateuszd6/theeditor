@@ -1,3 +1,8 @@
+// TODO:
+//       * Don't touch the gap, when buffer is allocated.
+//       * Unicode
+//       * fancy up the api for inserting sequences, etc.
+
 #ifndef GAP_BUFFER_HPP
 #define GAP_BUFFER_HPP
 
