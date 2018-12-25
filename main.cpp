@@ -29,7 +29,8 @@ namespace g
     static int32 font_descent;
     static int32 font_height;
 
-    static gap_buffer test_buffer;
+    static buffer* file_buffer;
+    static buffer_point buf_pt;
 }
 
 static void
@@ -124,6 +125,17 @@ handle_event(xwindow* win)
             {
                 LOG_INFO("Escape was pressed!");
             }
+            if(keysym == XK_Up)
+            {
+                if(!g::buf_pt.line_up())
+                    LOG_WARN("Cannot move up!");
+            }
+
+            if(keysym == XK_Down)
+            {
+                if(!g::buf_pt.line_down())
+                    LOG_WARN("Cannot move down!");
+            }
 
             if(keysym == XK_Right)
             {
@@ -174,8 +186,18 @@ int
 main()
 {
     LOG_INFO("Using font: %s", g::fontname);
-    g::test_buffer.initialize();
-    auto file_buffer = create_buffer_from_file("./main.cpp");
+    g::file_buffer = create_buffer_from_file("./main.cpp");
+    g::buf_pt = create_buffer_point(g::file_buffer);
+#if 0
+    buffer_point.insert_character_at_point('M');
+    buffer_point.insert_character_at_point('a');
+    buffer_point.insert_character_at_point('t');
+    buffer_point.insert_character_at_point('e');
+    buffer_point.insert_character_at_point('u');
+    buffer_point.insert_character_at_point('s');
+    buffer_point.insert_character_at_point('z');
+    buffer_point.insert_newline_at_point();
+#endif
 
     xwindow win{ 400, 500 };
     win.load_scheme(g::colornames, array_cnt(g::colornames));
@@ -216,31 +238,24 @@ main()
                                s_cast<int16>(win.width - 32 + 1),
                                s_cast<int16>(win.height - 32 + 1));
 
-            static bool done = false;
-            if(!done)
-            {
-                for(auto k = 0; k <= 50; ++k)
-                {
-                    file_buffer->get_line(k)
-                        ->insert_at_point(0, '0' + s_cast<uint8>(k / 10));
-                    file_buffer->get_line(k)->insert_at_point(1, '0' + k % 10);
-                    file_buffer->get_line(k)->insert_at_point(2, ':');
-                    file_buffer->get_line(k)->insert_at_point(3, ' ');
-                }
-                done = true;
-            }
-
-            for(auto k = 0_u64; k < file_buffer->size(); ++k)
+            for(auto k = g::buf_pt.first_line;
+                k < g::file_buffer->size();
+                ++k)
             {
                 auto xstart = 18;
                 auto adv = 0;
                 auto next_line = 32 + k * g::font_height;
-                strref refs[2];
-                file_buffer->get_line(k)->to_str_refs(refs);
-                win.draw_text(xstart + adv, s_cast<int32>(next_line), 1, refs[0], &adv);
-                win.draw_text(xstart + adv, s_cast<int32>(next_line), 2, refs[1], &adv);
 
-                if(k > 50)
+                strref refs[2];
+                g::file_buffer->get_line(k)->to_str_refs(refs);
+                auto col = (g::buf_pt.curr_line == k ? 2 : 1);
+                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
+                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
+
+                // This means that the baseline is out of clamp rect, but the
+                // top of the letters might be so we do it after drawing the text.
+                // TODO: Check if boundries are correct.
+                if(next_line >= (16 - 1) + (win.height - 32 + 1))
                     break;
             }
 
