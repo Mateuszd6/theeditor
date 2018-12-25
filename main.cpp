@@ -229,17 +229,12 @@ main()
         // Drawing:
         {
             win.draw_rect(0, 0, win.width, win.height, 0);
-            win.draw_rect(16 -1 , 16 - 1, 512 + 2, 512 + 2, 1);
-            win.draw_rect(16, 16, 512, 512, 0);
+            win.draw_rect(16 -1 , 16 - 1, win.width - 32 + 2, win.height - 32 + 2, 1);
+            win.draw_rect(16, 16, win.width - 32, win.height - 32, 0);
 
-            // win.set_clamp_rect(16, 16, 512, 512);
-            char const* lines[] = {
-                "int main()",
-                "{",
-                "    return 0;",
-                "}",
-            };
-
+            win.set_clamp_rect(16 -1 , 16 - 1,
+                               s_cast<int16>(win.width - 32 + 1),
+                               s_cast<int16>(win.height - 32 + 1));
             for(auto k = 0_u64; k < file_buffer->size(); ++k)
             {
                 auto adv = 18;

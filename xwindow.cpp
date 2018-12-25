@@ -74,6 +74,7 @@ xwindow::~xwindow()
     }
 
     XDestroyWindow(dpy, win);
+    XFreeGC(dpy, gc);
     XCloseDisplay(dpy);
 }
 
