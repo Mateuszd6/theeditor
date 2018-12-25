@@ -72,8 +72,6 @@ handle_event(xwindow* win)
             KeySym keysym = NoSymbol;
             char text[32] = {};
 
-            static int idx = 0; // TODO: remove later.
-
 #if 0
             // if you want to tell if this was a repeated key, this trick seems reliable.
             int is_repeat = prev_ev.type         == KeyRelease &&
@@ -120,33 +118,37 @@ handle_event(xwindow* win)
                 printf("Got keysym: (%s)\n", sym_name);
             }
 
-            // example of responding to a key
-            if(keysym == XK_Escape)
+            // Switch on some keys that we handle in the special way.
+            switch (keysym)
             {
-                LOG_INFO("Escape was pressed!");
-            }
-            if(keysym == XK_Up)
-            {
-                if(!g::buf_pt.line_up())
-                    LOG_WARN("Cannot move up!");
-            }
+                case XK_Escape:
+                {
+                    LOG_INFO("Escape was pressed!");
+                } break;
 
-            if(keysym == XK_Down)
-            {
-                if(!g::buf_pt.line_down())
-                    LOG_WARN("Cannot move down!");
-            }
+                case XK_Up:
+                {
+                    if(!g::buf_pt.line_up())
+                        LOG_WARN("Cannot move up!");
+                } break;
 
-            if(keysym == XK_Right)
-            {
-                idx++;
-            }
+                case XK_Down:
+                {
+                    if(!g::buf_pt.line_down())
+                        LOG_WARN("Cannot move down!");
+                } break;
 
-            if(keysym == XK_Left)
-            {
-                idx--;
-                if(idx < 0)
-                    idx = 0;
+                case XK_Left:
+                {
+                } break;
+
+                case XK_Right:
+                {
+                } break;
+
+                default:
+                {
+                } break;
             }
         } break;
 
@@ -238,26 +240,56 @@ main()
                                s_cast<int16>(win.width - 32 + 1),
                                s_cast<int16>(win.height - 32 + 1));
 
-            for(auto k = g::buf_pt.first_line;
-                k < g::file_buffer->size();
-                ++k)
+            // TODO: Check if boundries are correct.
+            auto no_lines = ((win.height - 32 + 1) / g::font_height) + 1;
+
+            if(g::buf_pt.curr_line <= g::buf_pt.first_line)
             {
+                g::buf_pt.first_line = g::buf_pt.curr_line;
+                g::buf_pt.starting_from_top = true;
+            }
+            else if (g::buf_pt.curr_line - g::buf_pt.first_line >= no_lines - 1)
+            {
+                g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
+                g::buf_pt.starting_from_top = false;
+            }
+
+            if(g::buf_pt.starting_from_top)
+            for(auto k = 0;; ++k)
+            {
+                auto draw_line = k + g::buf_pt.first_line;
+                if(k == no_lines)
+                    break;
+
                 auto xstart = 18;
                 auto adv = 0;
                 auto next_line = 32 + k * g::font_height;
 
                 strref refs[2];
-                g::file_buffer->get_line(k)->to_str_refs(refs);
-                auto col = (g::buf_pt.curr_line == k ? 2 : 1);
+                g::file_buffer->get_line(draw_line)->to_str_refs(refs);
+                auto col = (g::buf_pt.curr_line == draw_line ? 2 : 1);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
-
-                // This means that the baseline is out of clamp rect, but the
-                // top of the letters might be so we do it after drawing the text.
-                // TODO: Check if boundries are correct.
-                if(next_line >= (16 - 1) + (win.height - 32 + 1))
-                    break;
             }
+            else
+            for(auto k = no_lines - 1; k >= 0; --k)
+            {
+                auto draw_line = k + g::buf_pt.first_line;
+
+                auto xstart = 18;
+                auto adv = 0;
+                auto next_line = 16 - 1 + win.height - 32 + 1 -
+                    ((no_lines - 1) - k) * g::font_height - g::font_descent;
+
+                strref refs[2];
+                g::file_buffer->get_line(draw_line)->to_str_refs(refs);
+                auto col = (g::buf_pt.curr_line == draw_line ? 2 : 1);
+
+                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
+                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
+            }
+
+
 
             win.clear_clamp_rect();
             win.flush();
@@ -265,8 +297,10 @@ main()
 
         auto elapsed = chrono::system_clock::now() - start;
 
+#if 0
         LOG_INFO("elapsed: %d",
                  s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
+#endif
 
         // This will give us about 16ms speed.
         std::this_thread::sleep_for(16ms - elapsed);
