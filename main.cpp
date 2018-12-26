@@ -21,7 +21,7 @@ namespace g
         "#AE81FF", // monokai-violet
         "#75715E", // monokai-comments
         "#8F908A", // monokai-line-number
-        "#1E1F1C", // monokai-current-line
+        "#3A392F", // monokai-current-line (alt: 1E1F1C)
         "#057405", // NOTE - green
         "#F61010", // TODO - red
     };
@@ -321,43 +321,42 @@ main()
             if(g::buf_pt.starting_from_top)
             for(auto k = 0; k < no_lines; ++k)
             {
-                auto draw_line = k + g::buf_pt.first_line;
-                if(draw_line >= g::file_buffer->size())
+                auto line_to_draw = k + g::buf_pt.first_line;
+                if(line_to_draw >= g::file_buffer->size())
                 {
                     // TODO: Assert that we are drawing from the top. Can it even happen here?
                     break;
                 }
 
-                auto xstart = 18;
-                auto next_line = 16 - 1 + g::font_ascent + k * g::font_height;
+                auto basex = 18;
+                auto basey = 16 - 1 + g::font_ascent + k * g::font_height;
 
                 strref refs[2];
-                g::file_buffer->get_line(draw_line)->to_str_refs(refs);
-                draw_line_aux(win, g::buf_pt.curr_line == draw_line,
+                g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
+                draw_line_aux(win, g::buf_pt.curr_line == line_to_draw,
                               16, s_cast<int16>(win.width - 32 + 1) - 1,
-                              xstart, next_line,
+                              basex, basey,
                               refs);
             }
             else
             for(auto k = no_lines - 1; k >= 0; --k)
             {
-                auto draw_line = k + g::buf_pt.first_line;
-                if(draw_line >= g::file_buffer->size())
+                auto line_to_draw = k + g::buf_pt.first_line;
+                if(line_to_draw >= g::file_buffer->size())
                 {
                     // TODO: Assert that we are drawing from the top. Can it even happen here?
                     break;
                 }
 
-                auto xstart = 18;
-                auto adv = 0;
-                auto next_line = 16 - 1 + win.height - 32 + 1 -
+                auto basex = 18;
+                auto basey = 16 - 1 + win.height - 32 + 1 -
                     ((no_lines - 1) - k) * g::font_height - g::font_descent;
 
                 strref refs[2];
-                g::file_buffer->get_line(draw_line)->to_str_refs(refs);
-                draw_line_aux(win, g::buf_pt.curr_line == draw_line,
+                g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
+                draw_line_aux(win, g::buf_pt.curr_line == line_to_draw,
                               16, s_cast<int16>(win.width - 32 + 1) - 1,
-                              xstart, next_line,
+                              basex, basey,
                               refs);
             }
 
