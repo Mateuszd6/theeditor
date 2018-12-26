@@ -251,16 +251,6 @@ main()
     LOG_INFO("Using font: %s", g::fontname);
     g::file_buffer = create_buffer_from_file("./test");
     g::buf_pt = create_buffer_point(g::file_buffer);
-#if 0
-    buffer_point.insert_character_at_point('M');
-    buffer_point.insert_character_at_point('a');
-    buffer_point.insert_character_at_point('t');
-    buffer_point.insert_character_at_point('e');
-    buffer_point.insert_character_at_point('u');
-    buffer_point.insert_character_at_point('s');
-    buffer_point.insert_character_at_point('z');
-    buffer_point.insert_newline_at_point();
-#endif
 
     xwindow win{ 400, 500 };
     win.load_scheme(g::colornames, array_cnt(g::colornames));
@@ -309,7 +299,7 @@ main()
                 g::buf_pt.first_line = g::buf_pt.curr_line;
                 g::buf_pt.starting_from_top = true;
             }
-            else if (g::buf_pt.curr_line - g::buf_pt.first_line >= no_lines - 1)
+            else if (s_cast<int64>(g::buf_pt.curr_line - g::buf_pt.first_line) >= no_lines - 1)
             {
                 g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
                 g::buf_pt.starting_from_top = false;
