@@ -8,7 +8,7 @@
 namespace g
 {
     // TODO: For now we'll use only one font.
-    static constexpr char const* fontname = "DejaVu Sans Mono:size=9:antialias=true";
+    static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
     static char const* colornames[] = {
         "#272822", // monokai-background
         "#F8F8F2", // monokai-foreground
@@ -46,6 +46,7 @@ handle_event(xwindow* win)
             auto xce = ev.xconfigure;
             LOG_WARN("CONFIGURE NOTIFY %dx%d", xce.width, xce.height);
 
+            // TODO: Resizing height when buffer is displayed from the bottom is buggy.
             // This event type is generated for a variety of happenings, so check
             // whether the window has been resized.
             if (xce.width != win->width || xce.height != win->height)
@@ -195,7 +196,7 @@ int
 main()
 {
     LOG_INFO("Using font: %s", g::fontname);
-    g::file_buffer = create_buffer_from_file("./main.cpp");
+    g::file_buffer = create_buffer_from_file("./test");
     g::buf_pt = create_buffer_point(g::file_buffer);
 #if 0
     buffer_point.insert_character_at_point('M');
@@ -261,13 +262,18 @@ main()
                 g::buf_pt.starting_from_top = false;
             }
 
+            // TODO: Make sure we are not drawing out-of-bounds, because 1. We
+            //       loose a lot of time when doing that, 2. It is bugprone.
             // TODO: Merge it somehow.
             if(g::buf_pt.starting_from_top)
-            for(auto k = 0;; ++k)
+            for(auto k = 0; k < no_lines; ++k)
             {
                 auto draw_line = k + g::buf_pt.first_line;
-                if(k == no_lines)
+                if(draw_line >= g::file_buffer->size())
+                {
+                    // TODO: Assert that we are drawing from the top. Can it even happen here?
                     break;
+                }
 
                 auto xstart = 18;
                 auto adv = 0;
@@ -323,7 +329,7 @@ main()
                                   1);
                 }
 
-                auto col = (g::buf_pt.curr_line == draw_line ? 1 : 1);
+                auto col = 1;
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
             }
@@ -339,6 +345,11 @@ main()
 
                 strref refs[2];
                 g::file_buffer->get_line(draw_line)->to_str_refs(refs);
+                if(draw_line >= g::file_buffer->size())
+                {
+                    // TODO: Assert that we are drawing from the top. Can it even happen here?
+                    break;
+                }
 
                 if (g::buf_pt.curr_line == draw_line)
                 {
@@ -382,11 +393,10 @@ main()
                                   1);
                 }
 
-                auto col = (g::buf_pt.curr_line == draw_line ? 1 : 1);
+                auto col = 1;
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
             }
-
 
 
             win.clear_clamp_rect();
@@ -395,7 +405,7 @@ main()
 
         auto elapsed = chrono::system_clock::now() - start;
 
-#if 0
+#if 1
         LOG_INFO("elapsed: %d",
                  s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
 #endif
