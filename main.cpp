@@ -2,6 +2,7 @@
 
 #include "gap_buffer.hpp"
 #include "buffer.hpp"
+#include "strref.hpp"
 
 #include <thread>
 

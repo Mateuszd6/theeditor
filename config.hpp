@@ -114,4 +114,15 @@ using namespace std::chrono_literals;
 #define DO_ONCE()                                                       \
     DO_ONCE_IMPL(ANON_NAME())
 
+// Relational operators as a macro
+#define REL_OPS(TYPE_)                                                  \
+    inline bool operator!=(TYPE_ const& x, TYPE_ const& y)              \
+    { return !(x == y); }                                               \
+    inline bool operator>(TYPE_ const& x, TYPE_ const& y)               \
+    { return y < x; }                                                   \
+    inline bool operator<=(TYPE_ const& x, TYPE_ const& y)              \
+    { return !(y < x); }                                                \
+    inline bool operator>=(TYPE_ const& x, TYPE_ const& y)              \
+    { return !(x < y); }
+
 #endif //CONFIG_HPP
