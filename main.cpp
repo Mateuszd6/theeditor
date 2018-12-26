@@ -193,6 +193,58 @@ blit_letter(xwindow* win, char ch,
     *advance = basex + glyph_info.xOff;
 }
 
+static void
+draw_line_aux(xwindow& win, bool is_current,
+              int32 framex, int32 framew,
+              int32 basex, int32 basey,
+              strref* refs)
+{
+    if (is_current)
+    {
+        win.draw_rect(framex, basey - g::font_height + g::font_descent,
+                      framew, g::font_height,
+                      10);
+
+        auto caret_x = basex;
+        auto caret_adv = 0;
+        if(g::buf_pt.curr_idx < refs[0].size())
+        {
+            XGlyphInfo extents;
+            XftTextExtentsUtf8(win.dpy, win.font,
+                               r_cast<FcChar8 const*>(refs[0].first),
+                               s_cast<int>(g::buf_pt.curr_idx),
+                               &extents);
+            caret_adv = extents.xOff;
+        }
+        else
+        {
+            ASSERT(g::buf_pt.curr_idx <= refs[0].size() + refs[1].size());
+            XGlyphInfo extents;
+            XftTextExtentsUtf8(win.dpy, win.font,
+                               r_cast<FcChar8 const*>(refs[0].first),
+                               s_cast<int>(refs[0].size()),
+                               &extents);
+            caret_adv += extents.xOff;
+
+            XftTextExtentsUtf8(win.dpy, win.font,
+                               r_cast<FcChar8 const*>(refs[1].first),
+                               s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
+                               &extents);
+            caret_adv += extents.xOff;
+        }
+        caret_x += caret_adv;
+
+        win.draw_rect(caret_x, basey - g::font_height + g::font_descent,
+                      1, g::font_height,
+                      1);
+    }
+
+    auto col = 1; // Default foreground.
+    auto adv = 0;
+    win.draw_text(basex + adv, s_cast<int32>(basey), col, refs[0], &adv);
+    win.draw_text(basex + adv, s_cast<int32>(basey), col, refs[1], &adv);
+}
+
 int
 main()
 {
@@ -277,67 +329,24 @@ main()
                 }
 
                 auto xstart = 18;
-                auto adv = 0;
                 auto next_line = 16 - 1 + g::font_ascent + k * g::font_height;
 
                 strref refs[2];
                 g::file_buffer->get_line(draw_line)->to_str_refs(refs);
-
-                DO_ONCE()
-                {
-                    for(auto i = 0; i < 4; ++i)
-                        g::buf_pt.character_right();
-                }
-
-                if (g::buf_pt.curr_line == draw_line)
-                {
-                    win.draw_rect(16, next_line - g::font_height + g::font_descent,
-                                  s_cast<int16>(win.width - 32 + 1) - 1, g::font_height,
-                                  10);
-
-                    // TODO: Abstract it.
-                    auto caret_x = xstart;
-                    auto caret_adv = 0;
-                    if(g::buf_pt.curr_idx < refs[0].size())
-                    {
-                        XGlyphInfo extents;
-                        XftTextExtentsUtf8(win.dpy, win.font,
-                                           r_cast<FcChar8 const*>(refs[0].first),
-                                           s_cast<int>(g::buf_pt.curr_idx),
-                                           &extents);
-                        caret_adv = extents.xOff;
-                    }
-                    else
-                    {
-                        ASSERT(g::buf_pt.curr_idx <= refs[0].size() + refs[1].size());
-                        XGlyphInfo extents;
-                        XftTextExtentsUtf8(win.dpy, win.font,
-                                           r_cast<FcChar8 const*>(refs[0].first),
-                                           s_cast<int>(refs[0].size()),
-                                           &extents);
-                        caret_adv += extents.xOff;
-
-                        XftTextExtentsUtf8(win.dpy, win.font,
-                                           r_cast<FcChar8 const*>(refs[1].first),
-                                           s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
-                                           &extents);
-                        caret_adv += extents.xOff;
-                    }
-                    caret_x += caret_adv;
-
-                    win.draw_rect(caret_x, next_line - g::font_height + g::font_descent,
-                                  1, g::font_height,
-                                  1);
-                }
-
-                auto col = 1;
-                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
-                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
+                draw_line_aux(win, g::buf_pt.curr_line == draw_line,
+                              16, s_cast<int16>(win.width - 32 + 1) - 1,
+                              xstart, next_line,
+                              refs);
             }
             else
             for(auto k = no_lines - 1; k >= 0; --k)
             {
                 auto draw_line = k + g::buf_pt.first_line;
+                if(draw_line >= g::file_buffer->size())
+                {
+                    // TODO: Assert that we are drawing from the top. Can it even happen here?
+                    break;
+                }
 
                 auto xstart = 18;
                 auto adv = 0;
@@ -346,57 +355,10 @@ main()
 
                 strref refs[2];
                 g::file_buffer->get_line(draw_line)->to_str_refs(refs);
-                if(draw_line >= g::file_buffer->size())
-                {
-                    // TODO: Assert that we are drawing from the top. Can it even happen here?
-                    break;
-                }
-
-                if (g::buf_pt.curr_line == draw_line)
-                {
-                    win.draw_rect(16, next_line - g::font_height + g::font_descent,
-                                  s_cast<int16>(win.width - 32 + 1) - 1,
-                                  g::font_height,
-                                  10);
-
-                    // TODO: Abstract it. (Copypaste)
-                    auto caret_x = xstart;
-                    auto caret_adv = 0;
-                    if(g::buf_pt.curr_idx < refs[0].size())
-                    {
-                        XGlyphInfo extents;
-                        XftTextExtentsUtf8(win.dpy, win.font,
-                                           r_cast<FcChar8 const*>(refs[0].first),
-                                           s_cast<int>(g::buf_pt.curr_idx),
-                                           &extents);
-                        caret_adv = extents.xOff;
-                    }
-                    else
-                    {
-                        ASSERT(g::buf_pt.curr_idx <= refs[0].size() + refs[1].size());
-                        XGlyphInfo extents;
-                        XftTextExtentsUtf8(win.dpy, win.font,
-                                           r_cast<FcChar8 const*>(refs[0].first),
-                                           s_cast<int>(refs[0].size()),
-                                           &extents);
-                        caret_adv += extents.xOff;
-
-                        XftTextExtentsUtf8(win.dpy, win.font,
-                                           r_cast<FcChar8 const*>(refs[1].first),
-                                           s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
-                                           &extents);
-                        caret_adv += extents.xOff;
-                    }
-                    caret_x += caret_adv;
-
-                    win.draw_rect(caret_x, next_line - g::font_height + g::font_descent,
-                                  1, g::font_height,
-                                  1);
-                }
-
-                auto col = 1;
-                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
-                win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
+                draw_line_aux(win, g::buf_pt.curr_line == draw_line,
+                              16, s_cast<int16>(win.width - 32 + 1) - 1,
+                              xstart, next_line,
+                              refs);
             }
 
 
