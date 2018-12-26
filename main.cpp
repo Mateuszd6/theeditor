@@ -20,6 +20,7 @@ namespace g
         "#AE81FF", // monokai-violet
         "#75715E", // monokai-comments
         "#8F908A", // monokai-line-number
+        "#1E1F1C", // monokai-current-line
         "#057405", // NOTE - green
         "#F61010", // TODO - red
     };
@@ -236,9 +237,9 @@ main()
             win.draw_rect(16 -1 , 16 - 1, win.width - 32 + 2, win.height - 32 + 2, 1);
             win.draw_rect(16, 16, win.width - 32, win.height - 32, 0);
 
-            win.set_clamp_rect(16 -1 , 16 - 1,
+            win.set_clamp_rect(16 -1 , 16 - 1 + 1,
                                s_cast<int16>(win.width - 32 + 1),
-                               s_cast<int16>(win.height - 32 + 1));
+                               s_cast<int16>(win.height - 32));
 
             // TODO: Check if boundries are correct.
             auto no_lines = ((win.height - 32 + 1) / g::font_height) + 1;
@@ -254,6 +255,7 @@ main()
                 g::buf_pt.starting_from_top = false;
             }
 
+            // TODO: Merge it somehow.
             if(g::buf_pt.starting_from_top)
             for(auto k = 0;; ++k)
             {
@@ -263,11 +265,19 @@ main()
 
                 auto xstart = 18;
                 auto adv = 0;
-                auto next_line = 32 + k * g::font_height;
+                auto next_line = 16 + 1 + g::font_ascent + k * g::font_height;
 
                 strref refs[2];
                 g::file_buffer->get_line(draw_line)->to_str_refs(refs);
-                auto col = (g::buf_pt.curr_line == draw_line ? 2 : 1);
+
+                if (g::buf_pt.curr_line == draw_line)
+                    win.draw_rect(16,
+                                  next_line - g::font_height + g::font_descent,
+                                  s_cast<int16>(win.width - 32 + 1) - 1,
+                                  g::font_height,
+                                  10);
+
+                auto col = (g::buf_pt.curr_line == draw_line ? 1 : 1);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
             }
@@ -283,8 +293,15 @@ main()
 
                 strref refs[2];
                 g::file_buffer->get_line(draw_line)->to_str_refs(refs);
-                auto col = (g::buf_pt.curr_line == draw_line ? 2 : 1);
 
+                if (g::buf_pt.curr_line == draw_line)
+                    win.draw_rect(16,
+                                  next_line - g::font_height + g::font_descent,
+                                  s_cast<int16>(win.width - 32 + 1) - 1,
+                                  g::font_height,
+                                  10);
+
+                auto col = (g::buf_pt.curr_line == draw_line ? 1 : 1);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[0], &adv);
                 win.draw_text(xstart + adv, s_cast<int32>(next_line), col, refs[1], &adv);
             }
