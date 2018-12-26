@@ -97,4 +97,21 @@ using namespace std::chrono_literals;
 #  endif
 #endif
 
+// Annonymus variable in c++?
+#define CONCAT_IMPL(NAME1, NAME2) NAME1##NAME2
+#define CONCAT(NAME1, NAME2) CONCAT_IMPL(NAME1, NAME2)
+#ifdef __COUNTER__
+#  define ANON_NAME_IMPL(NAME) CONCAT(NAME, __COUNTER__)
+#else
+#  define ANON_NAME_IMPL(NAME) CONCAT(NAME, __LINE__)
+#endif
+#define ANON_NAME() ANON_NAME_IMPL(ANONYMUS_VAR__)
+
+// A horriebly bad macro encapsulating local static initailization.
+#define DO_ONCE_IMPL(NAME)                                              \
+    auto static NAME = false;                                           \
+    if(!NAME && (NAME = true) == true)
+#define DO_ONCE()                                                       \
+    DO_ONCE_IMPL(ANON_NAME())
+
 #endif //CONFIG_HPP
