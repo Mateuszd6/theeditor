@@ -112,6 +112,40 @@ handle_event(xwindow* win)
 
                 char* sym_name = XKeysymToString(keysym);
                 LOG_INFO("Got both: (%s), (%s)\n", text, sym_name);
+
+                // TODO: This _must_ be incorrect. Investigate.
+                switch(text[0])
+                {
+                    case 8:
+                    {
+                        g::buf_pt.remove_character_backward();
+
+                    } break;
+
+                    case 9:
+                    {
+                        for(auto i = 0; i < 4; ++i)
+                            g::buf_pt.insert_character_at_point(' ');
+                    } break;
+
+                    case 10:
+                        break;
+
+                    case 13:
+                    {
+                        g::buf_pt.insert_newline_at_point();
+                    } break;
+
+                    case 127:
+                    {
+                        g::buf_pt.remove_character_forward();
+                    } break;
+
+                    default:
+                    {
+                        g::buf_pt.insert_character_at_point(text[0]);
+                    } break;
+                }
             }
 
             if(status == XLookupKeySym)
@@ -145,14 +179,24 @@ handle_event(xwindow* win)
                 {
                     if(!g::buf_pt.character_left())
                         LOG_WARN("Cannot move left!");
-
                 } break;
 
                 case XK_Right:
                 {
                     if(!g::buf_pt.character_right())
                         LOG_WARN("Cannot move right!");
+                } break;
 
+                case XK_End:
+                {
+                    if(!g::buf_pt.line_end())
+                        LOG_WARN("Cannot move to end!");
+                } break;
+
+                case XK_Home:
+                {
+                    if(!g::buf_pt.line_start())
+                        LOG_WARN("Cannot move to home!");
                 } break;
 
                 default:
