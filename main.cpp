@@ -363,7 +363,7 @@ main()
                 }
 
                 auto basex = 18;
-                auto basey = 16 - 1 + g::font_ascent + k * g::font_height;
+                auto basey = 16 + (k + 1) * g::font_height - g::font_descent;
 
                 strref refs[2];
                 g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
@@ -376,11 +376,11 @@ main()
             for(auto k = no_lines - 1; k >= 0; --k)
             {
                 auto line_to_draw = k + g::buf_pt.first_line;
+
+                // We can be starting from bot and not have a full buffer (check
+                // how sublime does it)
                 if(line_to_draw >= g::file_buffer->size())
-                {
-                    // TODO: Assert that we are drawing from the top. Can it even happen here?
-                    break;
-                }
+                    continue;
 
                 auto basex = 18;
                 auto basey = 16 - 1 + win.height - 32 + 1 -
