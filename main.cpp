@@ -33,6 +33,8 @@ namespace g
 
     static buffer* file_buffer;
     static buffer_point buf_pt;
+
+    static bool buffer_is_dirty = true;
 }
 
 static void
@@ -40,10 +42,13 @@ handle_event(xwindow* win)
 {
     XEvent ev;
     XNextEvent(win->dpy, &ev);
+
     switch(ev.type)
     {
         case ConfigureNotify:
         {
+            g::buffer_is_dirty = true;
+
             auto xce = ev.xconfigure;
             LOG_WARN("CONFIGURE NOTIFY %dx%d", xce.width, xce.height);
 
@@ -59,6 +64,7 @@ handle_event(xwindow* win)
 
         case UnmapNotify:
         {
+            g::buffer_is_dirty = true;
             LOG_WARN("UNMAP NOTIFY");
 
             // TODO: Figure out this event as it is also send then I force
@@ -67,6 +73,8 @@ handle_event(xwindow* win)
 
         case KeyPress:
         {
+            g::buffer_is_dirty = true;
+
             // note: if you just want the XK_ keysym, then you can just use
             // XLookupKeysym(&ev.xkey, 0);
             // and ignore all the XIM / XIC / status etc stuff
@@ -77,9 +85,9 @@ handle_event(xwindow* win)
 
 #if 0
             // if you want to tell if this was a repeated key, this trick seems reliable.
-            int is_repeat = prev_ev.type         == KeyRelease &&
-                prev_ev.xkey.time    == ev.xkey.time &&
-                prev_ev.xkey.keycode == ev.xkey.keycode;
+            int is_repeat = (prev_ev.type == KeyRelease &&
+                             prev_ev.xkey.time    == ev.xkey.time &&
+                             prev_ev.xkey.keycode == ev.xkey.keycode);
 #endif
 
             // you might want to remove the control modifier, since it makes stuff return control codes
@@ -238,16 +246,18 @@ blit_letter(xwindow* win, char ch,
 }
 
 static void
-draw_line_aux(xwindow& win, bool is_current,
-              int32 framex, int32 framew,
-              int32 basex, int32 basey,
-              strref* refs)
+draw_textline_aux(xwindow& win, bool is_current,
+                  int32 framex, int32 framew,
+                  int32 basex, int32 basey,
+                  strref* refs)
 {
     if (is_current)
     {
+#if 0
         win.draw_rect(framex, basey - g::font_height + g::font_descent,
                       framew, g::font_height,
                       10);
+#endif
 
         auto caret_x = basex;
         auto caret_adv = 0;
@@ -283,11 +293,108 @@ draw_line_aux(xwindow& win, bool is_current,
                       1);
     }
 
+#if 1
+#define BLIT_AUX(COL)                                                   \
+    do {                                                                \
+        if(sref.size())                                                 \
+            win.draw_text(basex + old_adv, s_cast<int32>(basey),        \
+                          COL, sref, 0);                                \
+        old_adv = adv;                                                  \
+    } while(0)
+
+#define PUSH_CHARACTER()                                                \
+    do {                                                                \
+        sref.last++;                                                    \
+    } while(0)                                                          \
+
+#define FLUSH_BUFFER()                                                  \
+    do {                                                                \
+        sref.first = sref.last;                                         \
+    } while(0)                                                          \
+
+    auto old_adv = 0;
+    auto adv = 0;
+    auto sref = strref{};
+
+    for(auto j = 0; j < 2; ++j)
+    {
+        sref.first = refs[j].first;
+        sref.last = refs[j].first;
+
+        for(auto i : refs[j])
+        {
+#if 1
+            if(i == ';' || i == '.' || i == '(' || i == ')' || i == ':'
+               || i == ',' || i == '[' || i == ']' || i == '{' || i == '}'
+               || i == '-' || i == '+' || i == '=' || i == '!' || i == '|'
+               || i == '&' || i == '#' || i == '^' || i == '<' || i == '>')
+            {
+                BLIT_AUX(j + 1);
+                FLUSH_BUFFER();
+                adv += g::glyph_info[s_cast<int32>(i)].xOff;
+                PUSH_CHARACTER();
+                BLIT_AUX(2);
+                FLUSH_BUFFER();
+                continue;
+            }
+            else
+#endif
+            {
+                PUSH_CHARACTER();
+            }
+
+            adv += g::glyph_info[s_cast<int32>(i)].xOff;
+        }
+
+        BLIT_AUX(j + 1);
+    }
+#else
     auto col = 1; // Default foreground.
     auto adv = 0;
     win.draw_text(basex + adv, s_cast<int32>(basey), col, refs[0], &adv);
     win.draw_text(basex + adv, s_cast<int32>(basey), col, refs[1], &adv);
+#endif
 }
+
+// TODO: This is a TEST!
+#if 1
+typedef enum _XftClipType {
+    XftClipTypeNone, XftClipTypeRegion, XftClipTypeRectangles
+} XftClipType;
+
+typedef struct _XftClipRect {
+    int                 xOrigin;
+    int                 yOrigin;
+    int                 n;
+} XftClipRect;
+
+#define XftClipRects(cr)    ((XRectangle *) ((cr) + 1))
+
+typedef union _XftClip {
+    XftClipRect     *rect;
+    Region          region;
+} XftClip;
+
+struct _XftDraw {
+    Display         *dpy;
+    int             screen;
+    unsigned int    bits_per_pixel;
+    unsigned int    depth;
+    Drawable        drawable;
+    Visual          *visual;    /* NULL for bitmaps */
+    Colormap        colormap;
+    XftClipType     clip_type;
+    XftClip         clip;
+    int             subwindow_mode;
+    struct {
+        Picture         pict;
+    } render;
+    struct {
+        GC              gc;
+        int             use_pixmap;
+    } core;
+};
+#endif
 
 int
 main()
@@ -321,19 +428,60 @@ main()
 
     while(1)
     {
-        auto start = chrono::system_clock::now();
         while(XPending(win.dpy))
             handle_event(&win);
 
-        // Drawing:
+#if 0 // DEBUG: Use this to make sure the bug is not an issue with reusing the canvas
+        win.canvas = XCreatePixmap(win.dpy, win.win, win.width, win.height, DefaultDepth(win.dpy, win.scr));
+        win.draw = XftDrawCreate(win.dpy, win.canvas, win.vis, win.cmap);
+#endif
+
+        if(g::buffer_is_dirty)
         {
+            auto start = chrono::system_clock::now();
+
+            g::buffer_is_dirty = false;
             win.draw_rect(0, 0, win.width, win.height, 0);
             win.draw_rect(16 -1 , 16 - 1, win.width - 32 + 2, win.height - 32 + 2, 1);
             win.draw_rect(16, 16, win.width - 32, win.height - 32, 0);
 
+#if 0
+            auto adv = 0;
+            auto basex = 0;
+            auto basey = 30;
+            auto a = XftCharIndex (win.dpy, win.font, 'm');
+
+            for(int j = 0; j < 50; ++j)
+            {
+                basex = 20;
+                for(int i = 0; i < 100; ++i)
+                {
+#if 0
+                    XftGlyphRender (win.dpy, draw_op,
+                                    src, win.font, win.draw->render.pict,
+                                    0, 0, basex, basey, &a, 1);
+#endif
+
+                    XftDrawGlyphs (win.draw, win.scm[i % 8 + 1], win.font, basex, basey, &a, 1);
+                    auto const& glyph_info = g::glyph_info[s_cast<int>('m')];
+                    basex += glyph_info.xOff;
+                }
+
+                basey += g::font_height;
+            }
+#endif
+
+#if 0
+            blit_letter(&win, 'm', 15, 15, &adv, 3);
+            blit_letter(&win, '@', adv, 15, &adv, 2);
+            blit_letter(&win, '@', adv, 15, &adv, 1);
+#endif
+
+#if 1
             win.set_clamp_rect(16 -1 , 16 - 1 + 1,
                                s_cast<int16>(win.width - 32 + 1),
                                s_cast<int16>(win.height - 32));
+#endif
 
             // TODO: Check if boundries are correct.
             auto no_lines = ((win.height - 32 + 1) / g::font_height) + 1;
@@ -353,61 +501,57 @@ main()
             //       loose a lot of time when doing that, 2. It is bugprone.
             // TODO: Merge it somehow.
             if(g::buf_pt.starting_from_top)
-            for(auto k = 0; k < no_lines; ++k)
-            {
-                auto line_to_draw = k + g::buf_pt.first_line;
-                if(line_to_draw >= g::file_buffer->size())
+                for(auto k = 0; k < no_lines; ++k)
                 {
-                    // TODO: Assert that we are drawing from the top. Can it even happen here?
-                    break;
+                    auto line_to_draw = k + g::buf_pt.first_line;
+                    if(line_to_draw >= g::file_buffer->size())
+                        break;
+
+                    auto basex = 18;
+                    auto basey = 16 + (k + 1) * g::font_height - g::font_descent;
+
+                    strref refs[2];
+                    g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
+                    draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
+                                      16, s_cast<int16>(win.width - 32 + 1) - 1,
+                                      basex, basey,
+                                      refs);
+                }
+            else
+                for(auto k = no_lines - 1; k >= 0; --k)
+                {
+                    auto line_to_draw = k + g::buf_pt.first_line;
+
+                    // We can be starting from bot and not have a full buffer (check
+                    // how sublime does it)
+                    if(line_to_draw >= g::file_buffer->size())
+                        continue;
+
+                    auto basex = 18;
+                    auto basey = 16 - 1 + win.height - 32 + 1 -
+                        ((no_lines - 1) - k) * g::font_height - g::font_descent;
+
+                    strref refs[2];
+                    g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
+                    draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
+                                      16, s_cast<int16>(win.width - 32 + 1) - 1,
+                                      basex, basey,
+                                      refs);
                 }
 
-                auto basex = 18;
-                auto basey = 16 + (k + 1) * g::font_height - g::font_descent;
-
-                strref refs[2];
-                g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
-                draw_line_aux(win, g::buf_pt.curr_line == line_to_draw,
-                              16, s_cast<int16>(win.width - 32 + 1) - 1,
-                              basex, basey,
-                              refs);
-            }
-            else
-            for(auto k = no_lines - 1; k >= 0; --k)
-            {
-                auto line_to_draw = k + g::buf_pt.first_line;
-
-                // We can be starting from bot and not have a full buffer (check
-                // how sublime does it)
-                if(line_to_draw >= g::file_buffer->size())
-                    continue;
-
-                auto basex = 18;
-                auto basey = 16 - 1 + win.height - 32 + 1 -
-                    ((no_lines - 1) - k) * g::font_height - g::font_descent;
-
-                strref refs[2];
-                g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
-                draw_line_aux(win, g::buf_pt.curr_line == line_to_draw,
-                              16, s_cast<int16>(win.width - 32 + 1) - 1,
-                              basex, basey,
-                              refs);
-            }
-
-
-            win.clear_clamp_rect();
-            win.flush();
-        }
-
-        auto elapsed = chrono::system_clock::now() - start;
-
 #if 1
-        LOG_INFO("elapsed: %d",
-                 s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
+            win.clear_clamp_rect();
 #endif
+            win.flush();
 
-        // This will give us about 16ms speed.
-        std::this_thread::sleep_for(16ms - elapsed);
+            auto elapsed = chrono::system_clock::now() - start;
+
+            LOG_INFO("elapsed: %d",
+                     s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
+
+            // This will give us about 16ms speed.
+            std::this_thread::sleep_for(16ms);
+        }
     }
 
     win.free_scheme();

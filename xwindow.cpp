@@ -137,7 +137,11 @@ xwindow::clear_clamp_rect()
 void
 xwindow::draw_rect(int x, int y, int w, int h, int colorid)
 {
+#if 1
     XftDrawRect (draw, scm[colorid], x, y, w, h);
+#else
+    XFillRectangle(dpy, canvas, gc, x, y, w, h);
+#endif
 }
 
 void
