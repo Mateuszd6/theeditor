@@ -6,28 +6,28 @@
 #include "debug_goodies.h"
 
 #include <cstdint>
-typedef int8_t int8;
-typedef uint8_t uint8;
-typedef int16_t int16;
-typedef uint16_t uint16;
-typedef int32_t int32;
-typedef uint32_t uint32;
-typedef int64_t int64;
-typedef uint64_t uint64;
-typedef float real32;
-typedef double real64;
+typedef int8_t i8;
+typedef uint8_t u8;
+typedef int16_t i16;
+typedef uint16_t u16;
+typedef int32_t i32;
+typedef uint32_t u32;
+typedef int64_t i64;
+typedef uint64_t u64;
+typedef float r32;
+typedef double r64;
 typedef size_t umm;
 typedef ssize_t mm; // TODO: Sometimes ssize_t is not defined. Fallback to
-                    // something like ptrdiff_t?
+                    //       something like ptrdiff_t?
 
-inline int8 operator"" _i8(unsigned long long liter) { return static_cast<int8>(liter); }
-inline uint8 operator"" _u8(unsigned long long liter) { return static_cast<uint8>(liter); }
-inline int16 operator"" _i16(unsigned long long liter) { return static_cast<int16>(liter); }
-inline uint16 operator"" _u16(unsigned long long liter) { return static_cast<uint16>(liter); }
-inline int32 operator"" _i32(unsigned long long liter) { return static_cast<int32>(liter); }
-inline uint32 operator"" _u32(unsigned long long liter) { return static_cast<uint32>(liter); }
-inline int64 operator"" _i64(unsigned long long liter) { return static_cast<int64>(liter); }
-inline uint64 operator"" _u64(unsigned long long liter) { return static_cast<uint64>(liter); }
+inline i8 operator"" _i8(unsigned long long liter) { return static_cast<i8>(liter); }
+inline u8 operator"" _u8(unsigned long long liter) { return static_cast<u8>(liter); }
+inline i16 operator"" _i16(unsigned long long liter) { return static_cast<i16>(liter); }
+inline u16 operator"" _u16(unsigned long long liter) { return static_cast<u16>(liter); }
+inline i32 operator"" _i32(unsigned long long liter) { return static_cast<i32>(liter); }
+inline u32 operator"" _u32(unsigned long long liter) { return static_cast<u32>(liter); }
+inline i64 operator"" _i64(unsigned long long liter) { return static_cast<i64>(liter); }
+inline u64 operator"" _u64(unsigned long long liter) { return static_cast<u64>(liter); }
 
 #define s_cast static_cast
 #define r_cast reinterpret_cast
@@ -47,39 +47,95 @@ inline uint64 operator"" _u64(unsigned long long liter) { return static_cast<uin
 #endif
 
 // Some commonly used intrinsics:
-
-#if defined COMPILER_GCC || defined COMPILER_CLANG
-#  define INTR_LIKELY(EXPR) (__builtin_expect(s_cast<bool>(EXPR), true))
-#  define INTR_UNLIKELY(EXPR) (__builtin_expect(s_cast<bool>(EXPR), false))
-#else // Looks like msvc does not support it.
-#  define INTR_LIKELY(EXPR) (EXPR)
-#  define INTR_UNLIKELY(EXPR) (EXPR)
-#endif
-
 #if defined COMPILER_GCC || defined COMPILER_CLANG
 #  define forceinline __attribute__((always_inline))
 #elif defined COMPILER_MSVC
 #  define forceinline __forceinline
 #endif
 
+namespace intr
+{
 #if defined COMPILER_GCC || defined COMPILER_CLANG
-inline int clz(int val) { return __builtin_clz(val); }
-inline int clz(long val) { return __builtin_clzl(val); }
-inline int clz(unsigned long long val) { return __builtin_clzll(val); }
-inline int ctz(int val) { return __builtin_ctz(val); }
-inline int ctz(long val) { return __builtin_ctzl(val); }
-inline int ctz(unsigned long long val) { return __builtin_ctzll(val); }
-inline int popcnt(int val) { return __builtin_popcount(val); }
-inline int popcnt(long val) { return __builtin_popcountl(val); }
-inline int popcnt(unsigned long long val) { return __builtin_popcountll(val); }
-#elif defined COMPILER_MSVC
-inline int popcnt(int32 val) { return s_cast<int>(__popcnt(val)); }
-inline int popcnt(int64 val) { return s_cast<int>(__popcnt64(val)); }
-#else
-// TODO: Define some basics for moar compilerz.
-#endif
+    static inline bool likely(bool expr_result)
+    {
+        return __builtin_expect(s_cast<bool>(expr_result), true);
+    }
 
-template<typename T, mm n >
+    static inline bool unlikely(bool expr_result)
+    {
+        return __builtin_expect(s_cast<bool>(expr_result), false);
+    }
+
+    static inline long expect(long value, long expected_value)
+    {
+        return __builtin_expect(value, expected_value);
+    }
+
+    static inline int clz32(i32 val)
+    {
+        static_assert(sizeof(unsigned int) == 4, "");
+        return __builtin_clz(val);
+    }
+
+    static inline int clz64(i64 val)
+    {
+        static_assert(sizeof(unsigned long long) == 8, "");
+        return __builtin_clzll(val);
+    }
+
+    static inline int ctz32(i32 val)
+    {
+        static_assert(sizeof(unsigned int) == 4, "");
+        return __builtin_ctz(val);
+    }
+
+    static inline int ctz64(i64 val)
+    {
+        static_assert(sizeof(unsigned long long) == 8, "");
+        return __builtin_ctzll(val);
+    }
+
+    static inline int popcnt32(i32 val)
+    {
+        static_assert(sizeof(unsigned int) == 4, "");
+        return __builtin_popcount(val);
+    }
+
+    static inline int popcnt64(i64 val)
+    {
+        static_assert(sizeof(unsigned long long) == 8, "");
+        return __builtin_popcountll(val);
+    }
+#elif defined COMPILER_MSVC
+    static inline bool likely(bool expr_result)
+    {
+        return expr_result;
+    }
+
+    static inline bool unlikely(bool expr_result)
+    {
+        return expr_result;
+    }
+
+    static inline long expect(long value, long expected_value)
+    {
+        ((void)(expected_value));
+        return value;
+    }
+
+    // TODO: clz and clz can be achieved with bit scan forward.
+    static inline int clz32(i32 val) { static_assert("clz32 - not implemented"); }
+    static inline int clz64(i64 val) { static_assert("clz64 - not implemented"); }
+    static inline int ctz32(i32 val) { static_assert("ctz32 - not implemented"); }
+    static inline int ctz64(i64 val) { static_assert("ctz64 - not implemented"); }
+    inline inline int popcnt32(i32 val) { return s_cast<int>(__popcnt(val)); }
+    inline inline int popcnt64(i64 val) { return s_cast<int>(__popcnt64(val)); }
+#else // Looks like msvc does not support it.
+#  error "Intrinsics probably won't work for You, as the compiler is unknown."
+#endif
+}
+
+template<typename T, mm n>
 mm array_cnt( T (&)[n] ) { return n; }
 
 #include <chrono>
@@ -108,21 +164,32 @@ using namespace std::chrono_literals;
 #define ANON_NAME() ANON_NAME_IMPL(ANONYMUS_VAR__)
 
 // A horriebly bad macro encapsulating local static initailization.
+// NOTE: Usage example:
+//       while(1)
+//       {
+//           DO_ONCE()
+//           {
+//               printf("This is printed only once\n");
+//           }
+//           printf("This is printed every time\n");
+//       }
 #define DO_ONCE_IMPL(NAME)                                              \
     auto static NAME = false;                                           \
     if(!NAME && (NAME = true) == true)
+
 #define DO_ONCE()                                                       \
     DO_ONCE_IMPL(ANON_NAME())
 
-// Relational operators as a macro
+// Relational operators as a macro. What waiting for operator <=> this is pretty
+// cool alternative.
 #define REL_OPS(TYPE_)                                                  \
     inline bool operator!=(TYPE_ const& x, TYPE_ const& y)              \
     { return !(x == y); }                                               \
     inline bool operator>(TYPE_ const& x, TYPE_ const& y)               \
-    { return y < x; }                                                   \
+    { return (y < x); }                                                 \
     inline bool operator<=(TYPE_ const& x, TYPE_ const& y)              \
     { return !(y < x); }                                                \
     inline bool operator>=(TYPE_ const& x, TYPE_ const& y)              \
     { return !(x < y); }
 
-#endif //CONFIG_HPP
+#endif // CONFIG_HPP

@@ -119,7 +119,7 @@ xwindow::resize(int new_w, int new_h)
 
 
 void
-xwindow::set_clamp_rect(int16 x, int16 y, uint16 w, uint16 h)
+xwindow::set_clamp_rect(i16 x, i16 y, u16 w, u16 h)
 {
     auto boundrect = XRectangle{x, y, w, h};
     auto r = XCreateRegion();
@@ -169,7 +169,7 @@ xwindow::draw_text(int x, int y, int colorid, char const* txt, int* adv)
 {
     draw_text(x, y, colorid,
               txt,
-              s_cast<int32>(strlen(txt)),
+              s_cast<i32>(strlen(txt)),
               adv);
 }
 

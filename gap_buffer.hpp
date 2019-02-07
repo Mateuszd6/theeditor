@@ -36,11 +36,11 @@ struct gap_buffer
 #ifdef GAP_BUF_SSO
     union
     {
-        uint8 data[32 + GAP_BUF_SSO_ADDITIONAL_SPACE];
+        u8 data[32 + GAP_BUF_SSO_ADDITIONAL_SPACE];
         struct
         {
 #endif
-            uint8 padding[GAP_BUF_SSO_ADDITIONAL_SPACE];
+            u8 padding[GAP_BUF_SSO_ADDITIONAL_SPACE];
 
             /// Allocated capacity of the buffer.
             size_t capacity;
@@ -48,16 +48,16 @@ struct gap_buffer
             /// Pointer to the first character that is not in the gap. Character
             /// pointer by this pointer is not in the structure and is not
             /// defined.
-            uint8* gap_start;
+            u8* gap_start;
 
             /// Pointer to the first vaild character that is outside of the
             /// gap. If the gap is at the end of a buffer, this poitner poitns
             /// outside to the allocated structure, and should not be
             /// dereferenced.
-            uint8* gap_end;
+            u8* gap_end;
 
             /// The content of the text buffer.
-            uint8* buffer;
+            u8* buffer;
 #ifdef GAP_BUF_SSO
         };
     };
@@ -94,7 +94,7 @@ struct gap_buffer
 
     /// Insert character at point. Will move the gap to the pointed location if
     /// necesarry. Can exapnd buffer memory.
-    void insert_at_point(size_t point, uint8 character); // LATIN2 characters only.
+    void insert_at_point(size_t point, u8 character); // LATIN2 characters only.
 
 #if 0 // TODO(PROFILING): Make this fucntion and use it when it comes to profiling.
     /// Insert character at point. Will move the gap to the pointed location if
@@ -103,7 +103,7 @@ struct gap_buffer
 #endif
 
     /// Insert character at point. This doesn't move a gap or expand memory.
-    void replace_at_point(size_t point, uint8 character);
+    void replace_at_point(size_t point, u8 character);
 
     /// Delete the character currently on the given point. Will move the gap to
     /// the pointed location if necesarry. Can shrink buffer memory.
@@ -127,15 +127,15 @@ struct gap_buffer
     size_t gap_size() const;
 
     /// Return the idx'th character in the buffer.
-    uint8 get(size_t idx) const;
+    u8 get(size_t idx) const;
 
     /// Operator alias for the 'get' function. Returns the idx'th character in
     /// the buffer.
-    uint8 operator[](size_t idx) const;
+    u8 operator[](size_t idx) const;
 
     /// Returns the c_str representation of the line. Allocates the memory for
     /// the string. The caller is repsonsible for freeing this memory.
-    int8* to_c_str() const;
+    char* to_c_str() const;
 
     /// Returns two strrefs representing the stored string. Refs must point to
     /// the array of size at least 2.
@@ -147,12 +147,12 @@ struct gap_buffer
     struct iterator
     {
         gap_buffer* gapb;
-        uint8* curr;
+        u8* curr;
 
         bool operator==(const iterator&);
         bool operator!=(const iterator&);
         void operator++();
-        uint8 operator*() const;
+        u8 operator*() const;
     };
 
     iterator begin();

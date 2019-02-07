@@ -28,7 +28,7 @@ void buffer::move_gap_to_point(size_t point)
         auto diff = gap_start - point;
         auto dest_start = gap_end - diff;
         auto source_start = point;
-        for (auto i = s_cast<int64>(diff - 1); i >= 0; --i)
+        for (auto i = s_cast<i64>(diff - 1); i >= 0; --i)
             move_gap_bufffer(&lines[source_start + i], &lines[dest_start + i]);
 
         gap_start -= diff;
@@ -68,7 +68,7 @@ void buffer::move_gap_to_buffer_end()
 }
 
 // TODO: Dont use it. Use: get_line()->insert....
-bool buffer::insert_character(size_t line, size_t point, uint8 character)
+bool buffer::insert_character(size_t line, size_t point, u8 character)
 {
     get_line(line)->insert_at_point(point, character);
 
@@ -190,7 +190,7 @@ void buffer::DEBUG_print_state() const
     }
 }
 
-bool buffer_point::insert_character_at_point(uint8 character)
+bool buffer_point::insert_character_at_point(u8 character)
 {
     buffer_ptr->get_line(curr_line)->insert_at_point(curr_idx++, character);
     last_line_idx = -1;
@@ -360,11 +360,11 @@ bool buffer_point::line_down()
         return false;
 }
 
-bool buffer_point::jump_up(uint64 number_of_lines)
+bool buffer_point::jump_up(u64 number_of_lines)
 {
     auto goal_idx = (last_line_idx == -1
                      ? curr_idx
-                     : (curr_idx > s_cast<uint64>(last_line_idx) ? curr_idx : last_line_idx));
+                     : (curr_idx > s_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
 
     if(curr_line == 0)
         return false;
@@ -388,12 +388,12 @@ bool buffer_point::jump_up(uint64 number_of_lines)
     }
 }
 
-bool buffer_point::jump_down(uint64 number_of_lines)
+bool buffer_point::jump_down(u64 number_of_lines)
 {
     auto last_line_index = buffer_ptr->size() - 1;
     auto goal_idx = (last_line_idx == -1
                      ? curr_idx
-                     : (curr_idx > s_cast<uint64>(last_line_idx) ? curr_idx : last_line_idx));
+                     : (curr_idx > s_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
 
     if(curr_line == last_line_index)
         return false;
@@ -478,7 +478,7 @@ static buffer* create_buffer_from_file(char const* file_path)
     auto line_idx = -1_i64;
     auto line_capacity = 128_u64;
     auto line_size = 0_u64;
-    auto line = s_cast<int8*>(malloc(sizeof(int8) * line_capacity));
+    auto line = s_cast<i8*>(malloc(sizeof(i8) * line_capacity));
 
     line[0] = 0_u8;
     auto c = EOF;
@@ -513,11 +513,11 @@ static buffer* create_buffer_from_file(char const* file_path)
         {
             line_capacity *= 2;
             // TODO: Fix common realloc mistake!
-            line = s_cast<int8*>(realloc(line, sizeof(int8) * line_capacity));
+            line = s_cast<i8*>(realloc(line, sizeof(i8) * line_capacity));
             ASSERT(line);
         }
 
-        line[line_size++] = s_cast<uint8>(c);
+        line[line_size++] = s_cast<u8>(c);
     }
     while(c != EOF);
 

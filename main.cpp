@@ -27,9 +27,9 @@ namespace g
     };
 
     static XGlyphInfo glyph_info[256];
-    static int32 font_ascent;
-    static int32 font_descent;
-    static int32 font_height;
+    static i32 font_ascent;
+    static i32 font_descent;
+    static i32 font_height;
 
     static buffer* file_buffer;
     static buffer_point buf_pt;
@@ -98,7 +98,9 @@ handle_event(xwindow* win)
             // if you only care about latin-1 input, you can use XLookupString instead
             // and skip all the XIM / XIC setup stuff
 
-            Xutf8LookupString(win->input_xic, &ev.xkey, text, sizeof(text) - 1, &keysym, &status);
+            Xutf8LookupString(win->input_xic, &ev.xkey,
+                              text, sizeof(text) - 1,
+                              &keysym, &status);
 
             if(status == XBufferOverflow)
             {
@@ -233,7 +235,7 @@ handle_event(xwindow* win)
 // TODO: This is horriebly slow compared to window::draw_text.
 static inline void
 blit_letter(xwindow* win, char ch,
-            int32 basex, int32 basey,
+            i32 basex, i32 basey,
             int* advance, int colorid)
 {
     auto const& glyph_info = g::glyph_info[s_cast<int>(ch)];
@@ -247,8 +249,8 @@ blit_letter(xwindow* win, char ch,
 
 static void
 draw_textline_aux(xwindow& win, bool is_current,
-                  int32 framex, int32 framew,
-                  int32 basex, int32 basey,
+                  i32 framex, i32 framew,
+                  i32 basex, i32 basey,
                   strref* refs)
 {
     if (is_current)
@@ -297,7 +299,7 @@ draw_textline_aux(xwindow& win, bool is_current,
 #define BLIT_AUX(COL)                                                   \
     do {                                                                \
         if(sref.size())                                                 \
-            win.draw_text(basex + old_adv, s_cast<int32>(basey),        \
+            win.draw_text(basex + old_adv, s_cast<i32>(basey),        \
                           COL, sref, 0);                                \
         old_adv = adv;                                                  \
     } while(0)
@@ -331,7 +333,7 @@ draw_textline_aux(xwindow& win, bool is_current,
             {
                 BLIT_AUX(j + 1);
                 FLUSH_BUFFER();
-                adv += g::glyph_info[s_cast<int32>(i)].xOff;
+                adv += g::glyph_info[s_cast<i32>(i)].xOff;
                 PUSH_CHARACTER();
                 BLIT_AUX(2);
                 FLUSH_BUFFER();
@@ -343,7 +345,7 @@ draw_textline_aux(xwindow& win, bool is_current,
                 PUSH_CHARACTER();
             }
 
-            adv += g::glyph_info[s_cast<int32>(i)].xOff;
+            adv += g::glyph_info[s_cast<i32>(i)].xOff;
         }
 
         BLIT_AUX(j + 1);
@@ -351,50 +353,10 @@ draw_textline_aux(xwindow& win, bool is_current,
 #else
     auto col = 1; // Default foreground.
     auto adv = 0;
-    win.draw_text(basex + adv, s_cast<int32>(basey), col, refs[0], &adv);
-    win.draw_text(basex + adv, s_cast<int32>(basey), col, refs[1], &adv);
+    win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[0], &adv);
+    win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[1], &adv);
 #endif
 }
-
-// TODO: This is a TEST!
-#if 1
-typedef enum _XftClipType {
-    XftClipTypeNone, XftClipTypeRegion, XftClipTypeRectangles
-} XftClipType;
-
-typedef struct _XftClipRect {
-    int                 xOrigin;
-    int                 yOrigin;
-    int                 n;
-} XftClipRect;
-
-#define XftClipRects(cr)    ((XRectangle *) ((cr) + 1))
-
-typedef union _XftClip {
-    XftClipRect     *rect;
-    Region          region;
-} XftClip;
-
-struct _XftDraw {
-    Display         *dpy;
-    int             screen;
-    unsigned int    bits_per_pixel;
-    unsigned int    depth;
-    Drawable        drawable;
-    Visual          *visual;    /* NULL for bitmaps */
-    Colormap        colormap;
-    XftClipType     clip_type;
-    XftClip         clip;
-    int             subwindow_mode;
-    struct {
-        Picture         pict;
-    } render;
-    struct {
-        GC              gc;
-        int             use_pixmap;
-    } core;
-};
-#endif
 
 int
 main()
@@ -410,7 +372,7 @@ main()
 
     // Load glyph metrics info:
     {
-        for(uint8 i = 0; i < 127; ++i)
+        for(u8 i = 0; i < 127; ++i)
         {
             char txt[2];
             txt[0] = i;
@@ -479,8 +441,8 @@ main()
 
 #if 1
             win.set_clamp_rect(16 -1 , 16 - 1 + 1,
-                               s_cast<int16>(win.width - 32 + 1),
-                               s_cast<int16>(win.height - 32));
+                               s_cast<i16>(win.width - 32 + 1),
+                               s_cast<i16>(win.height - 32));
 #endif
 
             // TODO: Check if boundries are correct.
@@ -491,7 +453,7 @@ main()
                 g::buf_pt.first_line = g::buf_pt.curr_line;
                 g::buf_pt.starting_from_top = true;
             }
-            else if (s_cast<int64>(g::buf_pt.curr_line - g::buf_pt.first_line) >= no_lines - 1)
+            else if (s_cast<i64>(g::buf_pt.curr_line - g::buf_pt.first_line) >= no_lines - 1)
             {
                 g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
                 g::buf_pt.starting_from_top = false;
@@ -513,7 +475,7 @@ main()
                     strref refs[2];
                     g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
-                                      16, s_cast<int16>(win.width - 32 + 1) - 1,
+                                      16, s_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
                                       refs);
                 }
@@ -534,7 +496,7 @@ main()
                     strref refs[2];
                     g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
-                                      16, s_cast<int16>(win.width - 32 + 1) - 1,
+                                      16, s_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
                                       refs);
                 }
@@ -550,6 +512,7 @@ main()
                      s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
 
             // This will give us about 16ms speed.
+            // TODO: Speep for 16ms - elapsed
             std::this_thread::sleep_for(16ms);
         }
     }

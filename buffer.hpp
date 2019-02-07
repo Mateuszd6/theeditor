@@ -17,7 +17,7 @@ struct buffer
     void move_gap_to_point(size_t point);
     void move_gap_to_buffer_end();
 
-    bool insert_character(size_t line, size_t point, uint8 character);
+    bool insert_character(size_t line, size_t point, u8 character);
     bool insert_newline(size_t line);
     bool insert_newline_correct(size_t line, size_t point);
 
@@ -35,20 +35,20 @@ static buffer* create_buffer_from_file(char const* file_path);
 struct buffer_point
 {
     buffer* buffer_ptr;
-    uint64 first_line;
-    uint64 curr_line;
-    uint64 curr_idx;
+    u64 first_line;
+    u64 curr_line;
+    u64 curr_idx;
 
     /// If the line is switched to the much shorter one, and the current
     /// index is truncated to the end, ths value holds the previous index
     /// until the cursor is moved left / right, something is inserted etc.
     /// After moving to the larger one, this index is tried to be restored.
     /// This value is ignored when it is equal to -1.
-    int64 last_line_idx;
+    i64 last_line_idx;
     bool starting_from_top;
 
 
-    bool insert_character_at_point(uint8 character);
+    bool insert_character_at_point(u8 character);
     bool insert_newline_at_point();
 
     bool remove_character_backward();
@@ -58,8 +58,8 @@ struct buffer_point
     bool character_left();
     bool line_up();
     bool line_down();
-    bool jump_up(uint64 number_of_lines);
-    bool jump_down(uint64 number_of_lines);
+    bool jump_up(u64 number_of_lines);
+    bool jump_down(u64 number_of_lines);
     bool line_start();
     bool line_end();
     bool buffer_start();

@@ -55,7 +55,7 @@ struct xwindow
     // are reallocated if the size has changed.
     void resize(int new_w, int new_h);
 
-    void set_clamp_rect(int16 x, int16 y, uint16 w, uint16 h);
+    void set_clamp_rect(i16 x, i16 y, u16 w, u16 h);
     void clear_clamp_rect();
 
     void draw_rect(int x, int y, int w, int h, int colorid);
