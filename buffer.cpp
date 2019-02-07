@@ -72,8 +72,12 @@ bool buffer::insert_character(size_t line, size_t point, u8 character)
 {
     get_line(line)->insert_at_point(point, character);
 
+    // TODO: Change for normal assertion (if it is really necesarry, becasuse it
+    //       looks usless).
+#if 0
     if (get_line(line)->gap_start == nullptr)
         PANIC("Nooooooo");
+#endif
 
     return true;
 }
@@ -467,6 +471,8 @@ static buffer* CreateNewBuffer()
     return result;
 }
 
+// TODO: Non-stupid file reader. Chunk by chunk. Do after unicode is implemented
+//       in the gap buffer.
 static buffer* create_buffer_from_file(char const* file_path)
 {
     auto result = g::buffers + g::number_of_buffers;

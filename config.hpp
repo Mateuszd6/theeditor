@@ -2,6 +2,7 @@
 #define CONFIG_HPP
 
 #define LOGGING
+// #define DG_LOG_LVL DG_LOG_LVL_ERROR
 #define DG_USE_COLORS 1
 #include "debug_goodies.h"
 

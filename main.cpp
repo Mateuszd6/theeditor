@@ -23,7 +23,7 @@ namespace g
         "#8F908A", // monokai-line-number
         "#3A392F", // monokai-current-line (alt: 1E1F1C)
         "#057405", // NOTE - green
-        "#F61010", // TODO - red
+        "#F61010", // TOD0 - red (spelled this way to avoid grep todo)
     };
 
     static XGlyphInfo glyph_info[256];
@@ -52,11 +52,13 @@ handle_event(xwindow* win)
             auto xce = ev.xconfigure;
             LOG_WARN("CONFIGURE NOTIFY %dx%d", xce.width, xce.height);
 
-            // TODO: Resizing height when buffer is displayed from the bottom is buggy.
             // This event type is generated for a variety of happenings, so check
             // whether the window has been resized.
             if (xce.width != win->width || xce.height != win->height)
             {
+                // TODO: Resizing height when buffer is displayed from the
+                //       bottom is buggy. The buffers must be notified.
+
                 win->resize(xce.width, xce.height);
                 LOG_WARN("RESIZING: %dx%d", xce.width, xce.height);
             }
@@ -67,8 +69,7 @@ handle_event(xwindow* win)
             g::buffer_is_dirty = true;
             LOG_WARN("UNMAP NOTIFY");
 
-            // TODO: Figure out this event as it is also send then I force
-            // redrawing the window.
+            // TODO: Figure out this event.
         } break;
 
         case KeyPress:
@@ -299,7 +300,7 @@ draw_textline_aux(xwindow& win, bool is_current,
 #define BLIT_AUX(COL)                                                   \
     do {                                                                \
         if(sref.size())                                                 \
-            win.draw_text(basex + old_adv, s_cast<i32>(basey),        \
+            win.draw_text(basex + old_adv, s_cast<i32>(basey),          \
                           COL, sref, 0);                                \
         old_adv = adv;                                                  \
     } while(0)
@@ -439,11 +440,9 @@ main()
             blit_letter(&win, '@', adv, 15, &adv, 1);
 #endif
 
-#if 1
             win.set_clamp_rect(16 -1 , 16 - 1 + 1,
                                s_cast<i16>(win.width - 32 + 1),
                                s_cast<i16>(win.height - 32));
-#endif
 
             // TODO: Check if boundries are correct.
             auto no_lines = ((win.height - 32 + 1) / g::font_height) + 1;
@@ -501,9 +500,7 @@ main()
                                       refs);
                 }
 
-#if 1
             win.clear_clamp_rect();
-#endif
             win.flush();
 
             auto elapsed = chrono::system_clock::now() - start;
@@ -512,15 +509,16 @@ main()
                      s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
 
             // This will give us about 16ms speed.
-            // TODO: Speep for 16ms - elapsed
-            std::this_thread::sleep_for(16ms);
+            std::this_thread::sleep_for(16ms - elapsed);
         }
     }
 
+    // NOTE: Since the above loop should not be breaked the cleaup should take
+    //       place in the global exit function
+#if 0
     win.free_scheme();
     win.free_font();
-
-    return 0;
+#endif
 }
 
 #include "buffer.cpp"
