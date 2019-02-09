@@ -68,7 +68,7 @@ void buffer::move_gap_to_buffer_end()
 }
 
 // TODO: Dont use it. Use: get_line()->insert....
-bool buffer::insert_character(size_t line, size_t point, u8 character)
+bool buffer::insert_character(size_t line, size_t point, u32 character)
 {
     get_line(line)->insert_at_point(point, character);
 
@@ -162,6 +162,7 @@ gap_buffer* buffer::get_line(size_t line) const
         return &lines[gap_end + (line - gap_start)];
 }
 
+#if 0
 void buffer::DEBUG_print_state() const
 {
     auto in_gap = false;
@@ -193,8 +194,9 @@ void buffer::DEBUG_print_state() const
             printf("      ...\n%3ld:  ???\n", i);
     }
 }
+#endif
 
-bool buffer_point::insert_character_at_point(u8 character)
+bool buffer_point::insert_character_at_point(u32 character)
 {
     buffer_ptr->get_line(curr_line)->insert_at_point(curr_idx++, character);
     last_line_idx = -1;
@@ -460,9 +462,10 @@ bool buffer_point::point_is_valid()
     return (buffer_ptr->size() > curr_line && buffer_ptr->get_line(curr_line)->size() >= curr_idx);
 }
 
+#if 0
 // TODO(Docs): Summary!
 // TODO(Cleaup): Move to buffer file.
-static buffer* CreateNewBuffer()
+static buffer* create_new_buffer()
 {
     auto result = g::buffers + g::number_of_buffers;
     g::number_of_buffers++;
@@ -470,15 +473,103 @@ static buffer* CreateNewBuffer()
 
     return result;
 }
+#endif
+
+namespace detail
+{
+
+// Write to buffer starting from line'th line, and idx'th character.
+// Returns the pair (line + idx) at which the inserting has ended.
+static inline std::pair<mm, mm>
+write_to_buffer(buffer* buffer,
+                mm line, mm idx,
+                u32 const* begin, u32 const* end)
+{
+    // TODO: Possible different newline lineendings.
+    u32 const* curr = begin;
+    u32 const* prev = begin;
+
+    while(curr != end)
+    {
+        while(curr != end && *curr != static_cast<u32>('\n'))
+            ++curr;
+
+        // TODO: Change this to insert_sequence or something in the gap_buffer.
+        for(;prev != curr; ++prev)
+            buffer->get_line(line)->insert_at_point(idx++, *prev);
+
+        if(curr != end) // Different than end means newline character.
+        {
+            buffer->insert_newline(line++);
+
+            idx = 0;
+            ++curr;
+            prev = curr;
+        }
+        else
+            break;
+    }
+
+    return std::make_pair(line, idx);
+}
+
+// TODO: Move to the file api.
+static inline void
+load_file_into_buffer_utf8(buffer* buffer, char const* file_path)
+{
+    constexpr i32 chunk_size = 1024 * 4;
+    u8 input_chunk[chunk_size];
+    u32 output_chunk[chunk_size];
+
+    FILE* file = fopen(file_path, "rb");
+
+    LOG_INFO("Loading the file: %s", file_path);
+    if (file != NULL)
+    {
+        mm bytes_read;
+        mm insert_at_line = 0;
+        mm insert_at_idx = 0;
+
+        while ((bytes_read = fread(input_chunk, 1, chunk_size, file)) > 0)
+        {
+            LOG_INFO("Read %ld bytes of data input input chunk", bytes_read);
+
+            u8 const* src_curr = &(input_chunk[0]);
+
+            while(src_curr != input_chunk + bytes_read)
+            {
+                auto[src_reached, dest_reached] =
+                    utf8_to_utf32(input_chunk, input_chunk + bytes_read,
+                                  output_chunk, output_chunk + bytes_read);
+                src_curr = src_reached;
+
+                auto[res_line, res_idx] =
+                    write_to_buffer(buffer, insert_at_line, insert_at_idx,
+                                    &(output_chunk[0]), dest_reached);
+
+                insert_at_line = res_line;
+                insert_at_idx = res_idx;
+
+                LOG_INFO("\tNow, should write to buffer %ld utf32 codepoints!",
+                         dest_reached - output_chunk);
+            }
+        }
+        LOG_INFO("Done loading a file");
+    }
+    else
+        PANIC("Could not read file, becuase it does not exists!");
+}
+}
 
 // TODO: Non-stupid file reader. Chunk by chunk. Do after unicode is implemented
 //       in the gap buffer.
-static buffer* create_buffer_from_file(char const* file_path)
+static buffer*
+create_buffer_from_file(char const* file_path)
 {
-    auto result = g::buffers + g::number_of_buffers;
-    g::number_of_buffers++;
+    auto result = g::buffers + g::number_of_buffers++;
     result->initialize();
 
+#if 0
     auto file = fopen(file_path, "r");
     auto first_line_inserted = false;
     auto line_idx = -1_i64;
@@ -531,9 +622,11 @@ static buffer* create_buffer_from_file(char const* file_path)
     // -- network timeout for instance
     fclose(file);
     free(line);
+#else
+    detail::load_file_into_buffer_utf8(result, file_path);
+#endif
 
     LOG_DEBUG("DONE");
-
     return result;
 }
 

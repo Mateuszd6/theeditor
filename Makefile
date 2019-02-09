@@ -1,7 +1,7 @@
 .PHONY: all debug release clean clang_complete
 
 CC=clang++
-CFLAGS=-std=c++14 -fno-exceptions -fno-rtti
+CFLAGS=-std=c++17 -fno-exceptions -fno-rtti
 
 DISABLED_WARNINGS=-Wno-padded \
                   -Wno-format-nonliteral \

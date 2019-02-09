@@ -27,7 +27,6 @@ namespace g
         "#F61010", // TOD0 - red (spelled this way to avoid grep todo)
     };
 
-    static XGlyphInfo glyph_info[256];
     static i32 font_ascent;
     static i32 font_descent;
     static i32 font_height;
@@ -235,6 +234,10 @@ handle_event(xwindow* win)
   y = y + glyphInfo.yOff;
 */
 // TODO: This is horriebly slow compared to window::draw_text.
+// TODO: This should not be used anymore, becuase glyph_info has been removed
+//       since it was flat 256 byte table and didn't work with unicode
+//       characters.
+#if 0
 static inline void
 blit_letter(xwindow* win, char ch,
             i32 basex, i32 basey,
@@ -242,12 +245,13 @@ blit_letter(xwindow* win, char ch,
 {
     auto const& glyph_info = g::glyph_info[s_cast<int>(ch)];
 
-    XftDrawString8 (win->draw, win->scm[colorid], win->font,
+    XftDrawString32 (win->draw, win->scm[colorid], win->font,
                     basex, basey,
-                    r_cast<FcChar8 const*>(&ch), 1);
+                    r_cast<FcChar32 const*>(&ch), 1);
 
     *advance = basex + glyph_info.xOff;
 }
+#endif
 
 static void
 draw_textline_aux(xwindow& win, bool is_current,
@@ -257,7 +261,7 @@ draw_textline_aux(xwindow& win, bool is_current,
 {
     if (is_current)
     {
-#if 0
+#if 1
         win.draw_rect(framex, basey - g::font_height + g::font_descent,
                       framew, g::font_height,
                       10);
@@ -268,24 +272,24 @@ draw_textline_aux(xwindow& win, bool is_current,
         if(g::buf_pt.curr_idx < refs[0].size())
         {
             XGlyphInfo extents;
-            XftTextExtentsUtf8(win.dpy, win.font,
-                               r_cast<FcChar8 const*>(refs[0].first),
-                               s_cast<int>(g::buf_pt.curr_idx),
-                               &extents);
+            XftTextExtents32(win.dpy, win.font,
+                             r_cast<FcChar32 const*>(refs[0].first),
+                             s_cast<int>(g::buf_pt.curr_idx),
+                             &extents);
             caret_adv = extents.xOff;
         }
         else
         {
             ASSERT(g::buf_pt.curr_idx <= refs[0].size() + refs[1].size());
             XGlyphInfo extents;
-            XftTextExtentsUtf8(win.dpy, win.font,
-                               r_cast<FcChar8 const*>(refs[0].first),
+            XftTextExtents32(win.dpy, win.font,
+                               r_cast<FcChar32 const*>(refs[0].first),
                                s_cast<int>(refs[0].size()),
                                &extents);
             caret_adv += extents.xOff;
 
-            XftTextExtentsUtf8(win.dpy, win.font,
-                               r_cast<FcChar8 const*>(refs[1].first),
+            XftTextExtents32(win.dpy, win.font,
+                               r_cast<FcChar32 const*>(refs[1].first),
                                s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
                                &extents);
             caret_adv += extents.xOff;
@@ -297,26 +301,6 @@ draw_textline_aux(xwindow& win, bool is_current,
                       1);
     }
 
-#if 1
-#define BLIT_AUX(COL)                                                   \
-    do {                                                                \
-        if(sref.size())                                                 \
-            win.draw_text(basex + old_adv, s_cast<i32>(basey),          \
-                          COL, sref, 0);                                \
-        old_adv = adv;                                                  \
-    } while(0)
-
-#define PUSH_CHARACTER()                                                \
-    do {                                                                \
-        sref.last++;                                                    \
-    } while(0)                                                          \
-
-#define FLUSH_BUFFER()                                                  \
-    do {                                                                \
-        sref.first = sref.last;                                         \
-    } while(0)                                                          \
-
-    auto old_adv = 0;
     auto adv = 0;
     auto sref = strref{};
 
@@ -324,40 +308,11 @@ draw_textline_aux(xwindow& win, bool is_current,
     {
         sref.first = refs[j].first;
         sref.last = refs[j].first;
-
-        for(auto i : refs[j])
-        {
-#if 1
-            if(i == ';' || i == '.' || i == '(' || i == ')' || i == ':'
-               || i == ',' || i == '[' || i == ']' || i == '{' || i == '}'
-               || i == '-' || i == '+' || i == '=' || i == '!' || i == '|'
-               || i == '&' || i == '#' || i == '^' || i == '<' || i == '>')
-            {
-                BLIT_AUX(j + 1);
-                FLUSH_BUFFER();
-                adv += g::glyph_info[s_cast<i32>(i)].xOff;
-                PUSH_CHARACTER();
-                BLIT_AUX(2);
-                FLUSH_BUFFER();
-                continue;
-            }
-            else
-#endif
-            {
-                PUSH_CHARACTER();
-            }
-
-            adv += g::glyph_info[s_cast<i32>(i)].xOff;
-        }
-
-        BLIT_AUX(j + 1);
     }
-#else
+
     auto col = 1; // Default foreground.
-    auto adv = 0;
-    win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[0], &adv);
+    win.draw_text(basex + adv, s_cast<i32>(basey), col++, refs[0], &adv);
     win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[1], &adv);
-#endif
 }
 
 int
@@ -373,22 +328,10 @@ main()
         PANIC("Cannot load font %s", g::fontname);
 
     // Load glyph metrics info:
-    {
-        for(u8 i = 0; i < 127; ++i)
-        {
-            char txt[2];
-            txt[0] = i;
-            txt[1] = 0;
-
-            XftTextExtents8(win.dpy, win.font,
-                            r_cast<FcChar8 const*>(txt), 1,
-                            g::glyph_info + i);
-        }
-
-        g::font_ascent = win.font->ascent;
-        g::font_descent = win.font->descent;
-        g::font_height = win.font->height;
-    }
+    // TODO: Since they are now just aliases, possibly get rid of them?
+    g::font_ascent = win.font->ascent;
+    g::font_descent = win.font->descent;
+    g::font_height = win.font->height;
 
     while(1)
     {
@@ -408,38 +351,6 @@ main()
             win.draw_rect(0, 0, win.width, win.height, 0);
             win.draw_rect(16 -1 , 16 - 1, win.width - 32 + 2, win.height - 32 + 2, 1);
             win.draw_rect(16, 16, win.width - 32, win.height - 32, 0);
-
-#if 0
-            auto adv = 0;
-            auto basex = 0;
-            auto basey = 30;
-            auto a = XftCharIndex (win.dpy, win.font, 'm');
-
-            for(int j = 0; j < 50; ++j)
-            {
-                basex = 20;
-                for(int i = 0; i < 100; ++i)
-                {
-#if 0
-                    XftGlyphRender (win.dpy, draw_op,
-                                    src, win.font, win.draw->render.pict,
-                                    0, 0, basex, basey, &a, 1);
-#endif
-
-                    XftDrawGlyphs (win.draw, win.scm[i % 8 + 1], win.font, basex, basey, &a, 1);
-                    auto const& glyph_info = g::glyph_info[s_cast<int>('m')];
-                    basex += glyph_info.xOff;
-                }
-
-                basey += g::font_height;
-            }
-#endif
-
-#if 0
-            blit_letter(&win, 'm', 15, 15, &adv, 3);
-            blit_letter(&win, '@', adv, 15, &adv, 2);
-            blit_letter(&win, '@', adv, 15, &adv, 1);
-#endif
 
             win.set_clamp_rect(16 -1 , 16 - 1 + 1,
                                s_cast<i16>(win.width - 32 + 1),

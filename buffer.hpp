@@ -17,7 +17,7 @@ struct buffer
     void move_gap_to_point(size_t point);
     void move_gap_to_buffer_end();
 
-    bool insert_character(size_t line, size_t point, u8 character);
+    bool insert_character(size_t line, size_t point, u32 character);
     bool insert_newline(size_t line);
     bool insert_newline_correct(size_t line, size_t point);
 
@@ -48,7 +48,7 @@ struct buffer_point
     bool starting_from_top;
 
 
-    bool insert_character_at_point(u8 character);
+    bool insert_character_at_point(u32 character);
     bool insert_newline_at_point();
 
     bool remove_character_backward();

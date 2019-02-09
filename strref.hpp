@@ -18,31 +18,31 @@
 
 struct strref
 {
-    using iterator = char*;
-    using const_iterator = char const*;
+    using iterator = u32*;
+    using const_iterator = u32 const*;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    char* first;
-    char* last;
+    u32* first;
+    u32* last;
 
     strref() = default;
     strref(strref const& other) = default;
     strref& operator=(strref const&) = default;
 
-    strref(char* first_, char* last_)
+    strref(u32* first_, u32* last_)
     {
         first = first_;
         last = last_;
     }
 
-    strref(char* first_, mm len)
+    strref(u32* first_, mm len)
     {
         first = first_;
         last = first_ + len;
     }
 
-    strref(char* first_)
+    strref(u32* first_)
     {
         first = first_;
         auto p = first;
@@ -53,7 +53,7 @@ struct strref
     size_t size() const { return last - first; }
     bool empty() const { return first == last; }
 
-    char& operator[](mm pos) { return *(first + pos); }
+    u32& operator[](mm pos) { return *(first + pos); }
 
     void shrink_front(mm npos)
     {
@@ -61,7 +61,7 @@ struct strref
         STRREF_ASSERT(first <= last);
     }
 
-    void shrink_front(char* newpos)
+    void shrink_front(u32* newpos)
     {
         first = newpos;
         STRREF_ASSERT(first <= last);
@@ -73,13 +73,13 @@ struct strref
         STRREF_ASSERT(first <= last);
     }
 
-    void shrink_back(char* newpos)
+    void shrink_back(u32* newpos)
     {
         last = newpos;
         STRREF_ASSERT(first <= last);
     }
 
-    iterator first_of(char const* characters)
+    iterator first_of(u32 const* characters)
     {
         for(auto i = begin(); i != end(); ++i)
             for(auto c = characters; *c; ++c)
@@ -101,7 +101,7 @@ struct strref
         return end();
     }
 
-    iterator last_of(char* characters)
+    iterator last_of(u32* characters)
     {
         for(auto i = last - 1; i >= first; --i)
             for(auto c = characters; *c; ++c)
