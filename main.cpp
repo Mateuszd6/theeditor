@@ -3,6 +3,7 @@
 #include "gap_buffer.hpp"
 #include "buffer.hpp"
 #include "strref.hpp"
+#include "utf.hpp"
 
 #include <thread>
 
@@ -524,3 +525,4 @@ main()
 #include "buffer.cpp"
 #include "gap_buffer.cpp"
 #include "xwindow.cpp"
+#include "utf.cpp"
