@@ -32,6 +32,9 @@ struct buffer
 
 static buffer* create_buffer_from_file(char const* file_path);
 
+// TODO: Error code on fail.
+static void save_buffer_utf8(buffer* buf, char const* file_path);
+
 struct buffer_point
 {
     buffer* buffer_ptr;

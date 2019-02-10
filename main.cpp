@@ -259,13 +259,13 @@ draw_textline_aux(xwindow& win, bool is_current,
                   i32 basex, i32 basey,
                   strref* refs)
 {
+    // TODO: This horrible part is used to draw the current line highlight and
+    //       the caret. Simplify!
     if (is_current)
     {
-#if 1
         win.draw_rect(framex, basey - g::font_height + g::font_descent,
                       framew, g::font_height,
                       10);
-#endif
 
         auto caret_x = basex;
         auto caret_adv = 0;
@@ -319,7 +319,15 @@ int
 main()
 {
     LOG_INFO("Using font: %s", g::fontname);
+
     g::file_buffer = create_buffer_from_file("./test");
+
+    // TODO: Temporary stuff for testing the file + unicode api.
+#if 0
+    save_buffer_utf8(g::file_buffer, "./saved_test");
+    return 0;
+#endif
+
     g::buf_pt = create_buffer_point(g::file_buffer);
 
     xwindow win{ 400, 500 };

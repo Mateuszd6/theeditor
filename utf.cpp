@@ -6,20 +6,82 @@
 #include <immintrin.h>
 #include <xmmintrin.h>
 
-// TODO: Move to file api.
-static inline std::pair<u8 const*, mm>
-read_full_file(char const* filename)
+// This will not validate the utf32 codepoint and assumes that the sequence is
+// valid. This varion will also not check the dest boundries and assume that at
+// least 3 bytes after dest are still in the same allocation. If this is not
+// true, use _safe version.
+static inline void
+utf8_to_utf32_dec_advc(u32 const*& src, u8*& dest)
 {
-    FILE* f = fopen(filename, "rb");
-    fseek(f, 0, SEEK_END);
-    mm fsize = ftell(f);
-    fseek(f, 0, SEEK_SET); // same as rewind(f);
+    u32 cdpt = *src++;
+    if (cdpt <= 0x7F)
+    {
+        *dest++ = static_cast<u8>(cdpt);
+    }
+    else if (cdpt <= 0x7FF)
+    {
+        *dest++ = static_cast<u8>(0xC0 | ((cdpt >> 6) & 0x1F));
+        *dest++ = static_cast<u8>(0x80 | (cdpt & 0x3F));
+    }
+    else if (cdpt <= 0xFFFF)
+    {
+        *dest++ = static_cast<u8>(0xE0 | ((cdpt >> 12) & 0x0F));
+        *dest++ = static_cast<u8>(0x80 | ((cdpt >> 6) & 0x3F));
+        *dest++ = static_cast<u8>(0x80 | (cdpt & 0x3F));
+    }
+    else if (cdpt <= 0x10FFFF)
+    {
+        *dest++ = static_cast<u8>(0xF0 | ((cdpt >> 18) & 0x07));
+        *dest++ = static_cast<u8>(0x80 | ((cdpt >> 12) & 0x3F));
+        *dest++ = static_cast<u8>(0x80 | ((cdpt >> 6) & 0x3F));
+        *dest++ = static_cast<u8>(0x80 | (cdpt  & 0x3F));
+    }
+    else
+    {
+        PANIC("The UTF32 sequence appears to be invalid, but this fucntion assumes it is not!");
+        UNREACHABLE();
+    }
+}
 
-    u8* str = static_cast<u8*>(malloc(fsize));
-    fread(str, fsize, 1, f);
-    fclose(f);
+// bool must be returned, becuase it is possible that we still have a space in
+// dest buffer, but we caanot put the next character. e.g. we have 2 bytes, but
+// we need to write 3 byte sequence.
+static inline bool
+utf8_to_utf32_dec_advc_safe(u32 const*& src, u8*& dest, u8 const* const& dest_end)
+{
+    u32 cdpt = *src;
+    if (cdpt <= 0x7F && dest < dest_end)
+    {
+        *dest++ = static_cast<u8>(cdpt);
+        src++;
+        return true;
+    }
+    else if (cdpt <= 0x7FF && dest + 1 < dest_end)
+    {
+        *dest++ = static_cast<u8>(0xC0 | ((cdpt >> 6) & 0x1F));
+        *dest++ = static_cast<u8>(0x80 | (cdpt & 0x3F));
+        src++;
+        return true;
+    }
+    else if (cdpt <= 0xFFFF && dest + 2 < dest_end)
+    {
+        *dest++ = static_cast<u8>(0xE0 | ((cdpt >> 12) & 0x0F));
+        *dest++ = static_cast<u8>(0x80 | ((cdpt >> 6) & 0x3F));
+        *dest++ = static_cast<u8>(0x80 | (cdpt & 0x3F));
+        src++;
+        return true;
+    }
+    else if (cdpt <= 0x10FFFF && dest + 3 < dest_end)
+    {
+        *dest++ = static_cast<u8>(0xF0 | ((cdpt >> 18) & 0x07));
+        *dest++ = static_cast<u8>(0x80 | ((cdpt >> 12) & 0x3F));
+        *dest++ = static_cast<u8>(0x80 | ((cdpt >> 6) & 0x3F));
+        *dest++ = static_cast<u8>(0x80 | (cdpt  & 0x3F));
+        src++;
+        return true;
+    }
 
-    return std::make_pair(str, fsize);
+    return false;
 }
 
 namespace detail
@@ -35,9 +97,9 @@ validate_utf32(u32 cdpt)
 // There is a problem, with the incomplete/invalid sequence as this algorithm
 // will look beyond alloced mem. This does not check the range and should be
 // called when there are at least 3 bytes more allocated after src. If this is
-// not true use decode_next_and_advance_safe.
+// not true use utf8_to_utf32_dec_advc_safe.
 static inline void
-decode_next_and_advance(u8 const*& src, u32*& dest)
+utf8_to_utf32_dec_advc(u8 const*& src, u32*& dest)
 {
     u32 retval;
     if(*src <= 0x7F)
@@ -88,9 +150,9 @@ decode_next_and_advance(u8 const*& src, u32*& dest)
 }
 
 // NOTE: This will check boundry for the src ptr (based on src_end) and it is
-//       save when there is incomplete sequence at the end of the alloced mem.
-static inline void
-decode_next_and_advance_safe(u8 const*& src,
+//       safe when there is incomplete sequence at the end of the alloced mem.
+static inline bool
+utf8_to_utf32_dec_advc_safe(u8 const*& src,
                              u8 const* src_end,
                              u32*& dest)
 {
@@ -122,13 +184,7 @@ decode_next_and_advance_safe(u8 const*& src,
     }
     else
     {
-        LOG_WARN("Invalid sequence starting with %02x", *src);
-
-        // TODO: Insert different character than '?'
-        *dest++ = static_cast<u32>('?');
-        src++;
-
-        return;
+        return false;
     }
 
     if(!validate_utf32(retval))
@@ -140,12 +196,14 @@ decode_next_and_advance_safe(u8 const*& src,
     }
     else
         *dest++ = retval;
+
+    return true;
 }
 
 // NOTE: This assumes that src and dest are allocated at least for next 15 bytes
 //       each.
 static inline void
-decode_next_and_advance_ascii_optimized(u8 const*& src, u32*& dest)
+utf8_to_utf32_dec_advc_ascii_optimized(u8 const*& src, u32*& dest)
 {
     if(*src <= 0x7F)
     {
@@ -174,7 +232,7 @@ decode_next_and_advance_ascii_optimized(u8 const*& src, u32*& dest)
     }
     else
     {
-        decode_next_and_advance(src, dest);
+        utf8_to_utf32_dec_advc(src, dest);
     }
 }
 } // namespace detail
@@ -186,13 +244,30 @@ utf8_to_utf32(u8 const* src_begin,
               u32* dest_end)
 {
     while(src_begin + 16 <= src_end && dest_begin + 16 <= dest_end)
-        detail::decode_next_and_advance_ascii_optimized(src_begin, dest_begin);
+        detail::utf8_to_utf32_dec_advc_ascii_optimized(src_begin, dest_begin);
 
     while(src_begin + 4 <= src_end && dest_begin < dest_end)
-        detail::decode_next_and_advance(src_begin, dest_begin);
+        detail::utf8_to_utf32_dec_advc(src_begin, dest_begin);
 
     while(src_begin < src_end && dest_begin < dest_end)
-        detail::decode_next_and_advance_safe(src_begin, src_end, dest_begin);
+        if (!detail::utf8_to_utf32_dec_advc_safe(src_begin, src_end, dest_begin))
+            break;
+
+    return std::make_pair(src_begin, dest_begin);
+}
+
+static inline std::pair<u32 const*, u8 const*>
+utf32_to_utf8(u32 const* src_begin,
+              u32 const* src_end,
+              u8* dest_begin,
+              u8* dest_end)
+{
+    while(src_begin < src_end && dest_begin + 4 <= dest_end)
+        utf8_to_utf32_dec_advc(src_begin, dest_begin);
+
+    while(src_begin < src_end && dest_begin < dest_end)
+        if (!utf8_to_utf32_dec_advc_safe(src_begin, dest_begin, dest_end))
+            break;
 
     return std::make_pair(src_begin, dest_begin);
 }

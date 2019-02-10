@@ -478,6 +478,22 @@ static buffer* create_new_buffer()
 namespace detail
 {
 
+// TODO: Move to file api.
+static inline std::pair<u8 const*, mm>
+read_full_file(char const* filename)
+{
+    FILE* f = fopen(filename, "rb");
+    fseek(f, 0, SEEK_END);
+    mm fsize = ftell(f);
+    fseek(f, 0, SEEK_SET); // same as rewind(f);
+
+    u8* str = static_cast<u8*>(malloc(fsize));
+    fread(str, fsize, 1, f);
+    fclose(f);
+
+    return std::make_pair(str, fsize);
+}
+
 // Write to buffer starting from line'th line, and idx'th character.
 // Returns the pair (line + idx) at which the inserting has ended.
 static inline std::pair<mm, mm>
@@ -517,47 +533,42 @@ write_to_buffer(buffer* buffer,
 static inline void
 load_file_into_buffer_utf8(buffer* buffer, char const* file_path)
 {
-    constexpr i32 chunk_size = 1024 * 4;
-    u8 input_chunk[chunk_size];
+    constexpr i32 chunk_size = 1024;
     u32 output_chunk[chunk_size];
 
-    FILE* file = fopen(file_path, "rb");
-
     LOG_INFO("Loading the file: %s", file_path);
-    if (file != NULL)
+    auto[data_ptr, size] = read_full_file(file_path);
+
+    if (data_ptr)
     {
-        mm bytes_read;
         mm insert_at_line = 0;
         mm insert_at_idx = 0;
 
-        while ((bytes_read = fread(input_chunk, 1, chunk_size, file)) > 0)
+        u8 const* src_curr = data_ptr;
+
+        while(src_curr != data_ptr + size)
         {
-            LOG_INFO("Read %ld bytes of data input input chunk", bytes_read);
+            auto[src_reached, dest_reached] = utf8_to_utf32(src_curr,
+                                                            data_ptr + size,
+                                                            output_chunk,
+                                                            output_chunk + chunk_size);
+            src_curr = src_reached;
 
-            u8 const* src_curr = &(input_chunk[0]);
-
-            while(src_curr != input_chunk + bytes_read)
-            {
-                auto[src_reached, dest_reached] =
-                    utf8_to_utf32(input_chunk, input_chunk + bytes_read,
-                                  output_chunk, output_chunk + bytes_read);
-                src_curr = src_reached;
-
-                auto[res_line, res_idx] =
-                    write_to_buffer(buffer, insert_at_line, insert_at_idx,
-                                    &(output_chunk[0]), dest_reached);
-
-                insert_at_line = res_line;
-                insert_at_idx = res_idx;
-
-                LOG_INFO("\tNow, should write to buffer %ld utf32 codepoints!",
-                         dest_reached - output_chunk);
-            }
+            // This will split the lines, by searching for newline characters.
+            auto[res_line, res_idx] =
+                write_to_buffer(buffer, insert_at_line, insert_at_idx,
+                                &(output_chunk[0]), dest_reached);
+            insert_at_line = res_line;
+            insert_at_idx = res_idx;
         }
-        LOG_INFO("Done loading a file");
+
+        free(const_cast<void*>(static_cast<const void*>(data_ptr)));
     }
     else
+    {
+        free(const_cast<void*>(static_cast<const void*>(data_ptr)));
         PANIC("Could not read file, becuase it does not exists!");
+    }
 }
 }
 
@@ -628,6 +639,61 @@ create_buffer_from_file(char const* file_path)
 
     LOG_DEBUG("DONE");
     return result;
+}
+
+static void
+save_buffer_utf8(buffer* buf, char const* file_path)
+{
+    constexpr i32 chunk_size = 1024;
+    u8 output_chunk[chunk_size];
+    u32 input_chunk[chunk_size];
+    u32* input_idx = &(input_chunk[0]);
+
+    FILE* file = fopen(file_path, "w");
+
+    auto write_utf32_as_utf8_to_file =
+        [&](u32 const* begin, u32 const* end)
+        {
+            while(begin != end)
+            {
+                auto[reached_src, reached_dst] =
+                    utf32_to_utf8(begin, end, output_chunk, output_chunk + chunk_size);
+                begin = reached_src;
+
+                fwrite(output_chunk, 1, reached_dst - output_chunk, file);
+            }
+        };
+
+    // 4 is more than enought to store any possible newline sequence. For now
+    // only linuxish newlines are used.
+    u32 newline[4];
+    newline[0] = static_cast<u32>('\n');
+    newline[1] = 0;
+
+    strref refs[3];
+    refs[2] = strref{ newline, newline + 1 };
+    for(umm i = 0; i < buf->size(); ++i)
+    {
+        buf->get_line(i)->to_str_refs(refs);
+
+        // For the last line, we dont append a newline character.
+        for(int j = 0; j < (i + 1 == buf->size() ? 2 : 3); ++j)
+        {
+            for(auto c : refs[j])
+            {
+                *input_idx++ = c;
+
+                if(input_idx == input_chunk + chunk_size)
+                {
+                    write_utf32_as_utf8_to_file(input_chunk, input_chunk + chunk_size);
+                    input_idx = &(input_chunk[0]);
+                }
+            }
+        }
+    }
+
+    write_utf32_as_utf8_to_file(input_chunk, input_idx);
+    fclose(file);
 }
 
 static buffer_point create_buffer_point(buffer* buffer_ptr)
