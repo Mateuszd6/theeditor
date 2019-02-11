@@ -1,5 +1,5 @@
-#ifndef UTF_H
-#define UTF_H
+#ifndef UTF_HPP
+#define UTF_HPP
 
 // TODO: Describe endianees
 // Converts until one buffer ends. Returns the pair of iterators at which the
@@ -16,4 +16,4 @@ utf32_to_utf8(u32 const* src_begin,
               u8* dest_begin,
               u8* dest_end);
 
-#endif // UTF_H
+#endif // UTF_HPP

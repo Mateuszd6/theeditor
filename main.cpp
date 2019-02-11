@@ -4,6 +4,7 @@
 #include "buffer.hpp"
 #include "strref.hpp"
 #include "utf.hpp"
+#include "internals.hpp"
 
 #include <thread>
 
@@ -84,6 +85,7 @@ handle_event(xwindow* win)
             KeySym keysym = NoSymbol;
             char text[32] = {};
 
+            LOG_WARN("Key press!");
 #if 0
             // if you want to tell if this was a repeated key, this trick seems reliable.
             int is_repeat = (prev_ev.type == KeyRelease &&
@@ -91,7 +93,21 @@ handle_event(xwindow* win)
                              prev_ev.xkey.keycode == ev.xkey.keycode);
 #endif
 
-            // you might want to remove the control modifier, since it makes stuff return control codes
+            // TODO: This is the way to check modifiers! Make an internal represenation
+#define CHECK_FOR_KEY(KEY_NAME, MASK_NAME)              \
+            if(ev.xkey.state & MASK_NAME)               \
+                LOG_WARN(#KEY_NAME " is pressed!")
+            CHECK_FOR_KEY(Shift, ShiftMask);
+            CHECK_FOR_KEY(Lock, LockMask);
+            CHECK_FOR_KEY(Control, ControlMask);
+            CHECK_FOR_KEY(Mod1, Mod1Mask);
+            CHECK_FOR_KEY(Mod2, Mod2Mask);
+            CHECK_FOR_KEY(Mod3, Mod3Mask);
+            CHECK_FOR_KEY(Mod4, Mod4Mask);
+            CHECK_FOR_KEY(Mod5, Mod5Mask);
+
+            // you might want to remove the control modifier, since it makes
+            // stuff return control codes
             ev.xkey.state &= ~ControlMask;
 
             // get text from the key.
@@ -113,7 +129,7 @@ handle_event(xwindow* win)
             {
                 // some characters were returned without an associated key,
                 // again probably the result of an IME
-                LOG_WARN("Got chars: (%s)", text);
+                LOG_INFO("Got chars: (%s)", text);
             }
 
             if(status == XLookupBoth)
@@ -122,7 +138,7 @@ handle_event(xwindow* win)
                 // (all the keysyms are listed in /usr/include/X11/keysymdef.h)
 
                 char* sym_name = XKeysymToString(keysym);
-                LOG_INFO("Got both: (%s), (%s)\n", text, sym_name);
+                LOG_INFO("Got both: (%s), (%s)", text, sym_name);
 
                 // TODO: This _must_ be incorrect. Investigate.
                 switch(text[0])
@@ -161,9 +177,7 @@ handle_event(xwindow* win)
 
             if(status == XLookupKeySym)
             {
-                // a key without text on it
-                char* sym_name = XKeysymToString(keysym);
-                printf("Got keysym: (%s)\n", sym_name);
+                LOG_INFO("Got keysym: (%s) (0x%lx)", keycode_names[keysym & 0xFF], keysym);
             }
 
             // Switch on some keys that we handle in the special way.
@@ -267,6 +281,24 @@ draw_textline_aux(xwindow& win, bool is_current,
                       framew, g::font_height,
                       10);
 
+    }
+
+    auto adv = 0;
+    auto sref = strref{};
+
+    for(auto j = 0; j < 2; ++j)
+    {
+        sref.first = refs[j].first;
+        sref.last = refs[j].first;
+    }
+
+    auto col = 1; // Default foreground.
+    win.draw_text(basex + adv, s_cast<i32>(basey), col++, refs[0], &adv);
+    win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[1], &adv);
+
+    // The caret must be drawn after the text.
+    if (is_current)
+    {
         auto caret_x = basex;
         auto caret_adv = 0;
         if(g::buf_pt.curr_idx < refs[0].size())
@@ -283,15 +315,15 @@ draw_textline_aux(xwindow& win, bool is_current,
             ASSERT(g::buf_pt.curr_idx <= refs[0].size() + refs[1].size());
             XGlyphInfo extents;
             XftTextExtents32(win.dpy, win.font,
-                               r_cast<FcChar32 const*>(refs[0].first),
-                               s_cast<int>(refs[0].size()),
-                               &extents);
+                             r_cast<FcChar32 const*>(refs[0].first),
+                             s_cast<int>(refs[0].size()),
+                             &extents);
             caret_adv += extents.xOff;
 
             XftTextExtents32(win.dpy, win.font,
-                               r_cast<FcChar32 const*>(refs[1].first),
-                               s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
-                               &extents);
+                             r_cast<FcChar32 const*>(refs[1].first),
+                             s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
+                             &extents);
             caret_adv += extents.xOff;
         }
         caret_x += caret_adv;
@@ -300,19 +332,6 @@ draw_textline_aux(xwindow& win, bool is_current,
                       1, g::font_height,
                       1);
     }
-
-    auto adv = 0;
-    auto sref = strref{};
-
-    for(auto j = 0; j < 2; ++j)
-    {
-        sref.first = refs[j].first;
-        sref.last = refs[j].first;
-    }
-
-    auto col = 1; // Default foreground.
-    win.draw_text(basex + adv, s_cast<i32>(basey), col++, refs[0], &adv);
-    win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[1], &adv);
 }
 
 int
@@ -320,7 +339,6 @@ main()
 {
     LOG_INFO("Using font: %s", g::fontname);
     g::file_buffer = create_buffer_from_file("./test");
-
 
 #if 0 // TODO: Temporary stuff for testing the file + unicode api.
     for(umm i = 0; i < g::file_buffer->size(); ++i)
@@ -460,3 +478,4 @@ main()
 #include "gap_buffer.cpp"
 #include "xwindow.cpp"
 #include "utf.cpp"
+#include "internals.cpp"

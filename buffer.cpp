@@ -641,7 +641,7 @@ create_buffer_from_file(char const* file_path)
     return result;
 }
 
-static void
+static inline void
 save_buffer_utf8(buffer* buf, char const* file_path)
 {
     constexpr i32 chunk_size = 1024;
