@@ -17,7 +17,7 @@ void gap_buffer::initialize()
     gap_end = buffer + capacity;
 }
 
-void gap_buffer::move_gap_to_point(size_t point)
+void gap_buffer::move_gap_to_point(umm point)
 {
     ASSERT(point <= size());
     if (buffer + point == gap_start)
@@ -54,7 +54,7 @@ void gap_buffer::move_gap_to_buffer_end()
     }
 }
 
-void gap_buffer::reserve_gap(size_t n)
+void gap_buffer::reserve_gap(umm n)
 {
     // ASSERT(!sso_enabled());
     if (gap_size() < n)
@@ -83,7 +83,7 @@ void gap_buffer::reserve_gap(size_t n)
 }
 
 // TODO(Testing): Battle-test this. Watch out for allocations!
-void gap_buffer::insert_at_point(size_t point, u32 character) // LATIN2 characters only.
+void gap_buffer::insert_at_point(umm point, u32 character) // LATIN2 characters only.
 {
     ASSERT(point <= size());
 
@@ -102,7 +102,7 @@ void gap_buffer::insert_at_point(size_t point, u32 character) // LATIN2 characte
 }
 
 #if 0
-void gap_buffer::insert_sequence_at_point(size_t point, misc::length_buffer sequence) // LATIN2 characters only
+void gap_buffer::insert_sequence_at_point(umm point, misc::length_buffer sequence) // LATIN2 characters only
 {
     reserve_gap(size() + sequence.length);
     for(auto i = 0_u64; i < sequence.length; ++i)
@@ -110,19 +110,19 @@ void gap_buffer::insert_sequence_at_point(size_t point, misc::length_buffer sequ
 }
 #endif
 
-void gap_buffer::replace_at_point(size_t point, u32 character)
+void gap_buffer::replace_at_point(umm point, u32 character)
 {
     ASSERT(point < size());
 
 
-    auto ptr = (static_cast<ssize_t>(point) < (gap_start - buffer)
+    auto ptr = (static_cast<mm>(point) < (gap_start - buffer)
                 ? buffer + point
                 : gap_end + (point - (gap_start - buffer)));
 
     *ptr = character;
 }
 
-bool gap_buffer::delete_char_backward(size_t point)
+bool gap_buffer::delete_char_backward(umm point)
 {
     ASSERT(0 < point && point <= size());
 
@@ -134,16 +134,16 @@ bool gap_buffer::delete_char_backward(size_t point)
 
         gap_start--;
 
-        // TODO(#3): This is the only place that the memory can be shrinked, if
-        //           we want to shrink it on the deleteion which im not sure if
-        //           this is good idea.
+        // TODO(): This is the only place that the memory can be shrinked, if we
+        //         want to shrink it on the deleteion which im not sure if this
+        //         is good idea.
         return true;
     }
     else
         return false;
 }
 
-bool gap_buffer::delete_char_forward(size_t point)
+bool gap_buffer::delete_char_forward(umm point)
 {
     if(point == size())
         return false;
@@ -152,7 +152,7 @@ bool gap_buffer::delete_char_forward(size_t point)
     return true;
 }
 
-bool gap_buffer::delete_to_the_end_of_line(size_t point)
+bool gap_buffer::delete_to_the_end_of_line(umm point)
 {
     ASSERT(point <= size());
 
@@ -162,25 +162,25 @@ bool gap_buffer::delete_to_the_end_of_line(size_t point)
     return true;
 }
 
-size_t gap_buffer::size() const
+umm gap_buffer::size() const
 {
     return capacity - gap_size();
 }
 
-size_t gap_buffer::gap_size() const
+umm gap_buffer::gap_size() const
 {
     return (gap_end - gap_start);
 }
 
-u32 gap_buffer::get(size_t idx) const
+u32 gap_buffer::get(umm idx) const
 {
-    if (static_cast<ssize_t>(idx) < (gap_start - buffer))
+    if (static_cast<mm>(idx) < (gap_start - buffer))
         return *(buffer + idx);
     else
         return *(gap_end + (idx - (gap_start - buffer)));
 }
 
-u32 gap_buffer::operator [](size_t idx) const
+u32 gap_buffer::operator [](umm idx) const
 {
     return get(idx);
 }

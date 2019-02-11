@@ -8,24 +8,24 @@
 struct buffer
 {
     gap_buffer* lines;
-    size_t capacity;
-    size_t gap_start;
-    size_t gap_end;
+    umm capacity;
+    umm gap_start;
+    umm gap_end;
 
     void initialize();
 
-    void move_gap_to_point(size_t point);
+    void move_gap_to_point(umm point);
     void move_gap_to_buffer_end();
 
-    bool insert_character(size_t line, size_t point, u32 character);
-    bool insert_newline(size_t line);
-    bool insert_newline_correct(size_t line, size_t point);
+    bool insert_character(umm line, umm point, u32 character);
+    bool insert_newline(umm line);
+    bool insert_newline_correct(umm line, umm point);
 
-    bool delete_line(size_t line);
+    bool delete_line(umm line);
 
-    size_t size() const;
-    size_t gap_size() const;
-    gap_buffer* get_line(size_t line) const;
+    umm size() const;
+    umm gap_size() const;
+    gap_buffer* get_line(umm line) const;
 
     void DEBUG_print_state() const;
 };

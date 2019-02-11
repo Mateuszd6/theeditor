@@ -60,7 +60,7 @@ struct xwindow
 
     void draw_rect(int x, int y, int w, int h, int colorid);
 
-    void draw_text(int x, int y, int colorid, u32 const* ptr, size_t len, int* adv);
+    void draw_text(int x, int y, int colorid, u32 const* ptr, umm len, int* adv);
     void draw_text(int x, int y, int colorid, u32 const* txt, int* adv);
     void draw_text(int x, int y, int colorid, strref strref, int* adv);
 

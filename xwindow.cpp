@@ -13,7 +13,7 @@ xwindow::xwindow(int width_, int heigth_)
     vis = DefaultVisual(dpy, 0);
     cmap = DefaultColormap(dpy, scr);
 
-#if 0 // TODO: How on earth do i check the member named 'class'?
+#if 0 // TODO: How on earth do i check the member named 'class' in c++?
     if(visual->class != TrueColor)
         PANIC("Cannot handle non true color visual");
 #endif
@@ -55,9 +55,9 @@ xwindow::xwindow(int width_, int heigth_)
     }
 
     input_xic = XCreateIC(input_xim,
-                          XNInputStyle,   XIMPreeditNothing | XIMStatusNothing,
+                          XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
                           XNClientWindow, win,
-                          XNFocusWindow,  win,
+                          XNFocusWindow, win,
                           NULL);
 
     XSetICFocus(input_xic);
@@ -145,7 +145,7 @@ xwindow::draw_rect(int x, int y, int w, int h, int colorid)
 }
 
 void
-xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, size_t len, int* adv)
+xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, umm len, int* adv)
 {
     if(adv)
     {

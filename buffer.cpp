@@ -21,7 +21,7 @@ void buffer::initialize()
 }
 
 /// After this move point'th line is not valid and must be initialized before use.
-void buffer::move_gap_to_point(size_t point)
+void buffer::move_gap_to_point(umm point)
 {
     if (point < gap_start)
     {
@@ -68,7 +68,7 @@ void buffer::move_gap_to_buffer_end()
 }
 
 // TODO: Dont use it. Use: get_line()->insert....
-bool buffer::insert_character(size_t line, size_t point, u32 character)
+bool buffer::insert_character(umm line, umm point, u32 character)
 {
     get_line(line)->insert_at_point(point, character);
 
@@ -83,7 +83,7 @@ bool buffer::insert_character(size_t line, size_t point, u32 character)
 }
 
 /// line - number of line after we insert newline.
-bool buffer::insert_newline(size_t line)
+bool buffer::insert_newline(umm line)
 {
     if(gap_size() <= 2) // TODO: Make constants.
     {
@@ -103,7 +103,7 @@ bool buffer::insert_newline(size_t line)
     return true;
 }
 
-bool buffer::insert_newline_correct(size_t line, size_t point)
+bool buffer::insert_newline_correct(umm line, umm point)
 {
     ASSERT(line < size());
 
@@ -119,7 +119,7 @@ bool buffer::insert_newline_correct(size_t line, size_t point)
     return true;
 }
 
-bool buffer::delete_line(size_t line)
+bool buffer::delete_line(umm line)
 {
     ASSERT(line > 0);
     ASSERT(line < size());
@@ -142,17 +142,17 @@ bool buffer::delete_line(size_t line)
     return true;
 }
 
-size_t buffer::size() const
+umm buffer::size() const
 {
     return capacity - gap_size();
 }
 
-size_t buffer::gap_size() const
+umm buffer::gap_size() const
 {
     return gap_end - gap_start;
 }
 
-gap_buffer* buffer::get_line(size_t line) const
+gap_buffer* buffer::get_line(umm line) const
 {
     ASSERT(line < size());
 
