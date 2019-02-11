@@ -319,14 +319,29 @@ int
 main()
 {
     LOG_INFO("Using font: %s", g::fontname);
-
     g::file_buffer = create_buffer_from_file("./test");
 
-    // TODO: Temporary stuff for testing the file + unicode api.
-#if 0
+
+#if 0 // TODO: Temporary stuff for testing the file + unicode api.
+    for(umm i = 0; i < g::file_buffer->size(); ++i)
+    {
+        mm line_size = g::file_buffer->get_line(i)->size();
+        i32 random_number = line_size == 0 ? 0 : std::random_device()() % line_size;
+        g::file_buffer
+            ->get_line(i)
+            ->insert_at_point(random_number,
+                              s_cast<u32>('a' + std::random_device()() % 10));
+
+        g::file_buffer
+            ->get_line(i)
+            ->delete_char_forward(random_number);
+    }
+
     save_buffer_utf8(g::file_buffer, "./saved_test");
+    system("diff -s ./test ./saved_test");
     return 0;
 #endif
+
 
     g::buf_pt = create_buffer_point(g::file_buffer);
 
