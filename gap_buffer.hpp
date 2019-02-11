@@ -21,59 +21,24 @@
 #define GAP_BUF_MAX_SIZE_BEFORE_MEM_SHRINK (128)
 
 
-// NOTE: There is a 8-bit padding to the gap_buffer so that more strigs get
-//       SSO'ed.
-
-// #define GAP_BUF_SSO
-#define GAP_BUF_SSO_ADDITIONAL_SPACE (16)
-#define GAP_BUF_SSO_CAP (30 + GAP_BUF_SSO_ADDITIONAL_SPACE)
-#define GAP_BUF_SSO_ENABLED_BYTE (31 + GAP_BUF_SSO_ADDITIONAL_SPACE)
-#define GAP_BUF_SSO_GAP_START (data[30 + GAP_BUF_SSO_ADDITIONAL_SPACE])
-#define GAP_BUF_SSO_GAP_END (data[31 + GAP_BUF_SSO_ADDITIONAL_SPACE])
-
 struct gap_buffer
 {
-#ifdef GAP_BUF_SSO
-    union
-    {
-        u32 data[32 + GAP_BUF_SSO_ADDITIONAL_SPACE];
-        struct
-        {
-#endif
-            // u8 padding[GAP_BUF_SSO_ADDITIONAL_SPACE];
+    /// Allocated capacity of the buffer.
+    size_t capacity;
 
-            /// Allocated capacity of the buffer.
-            size_t capacity;
+    /// Pointer to the first character that is not in the gap. Character
+    /// pointer by this pointer is not in the structure and is not
+    /// defined.
+    u32* gap_start;
 
-            /// Pointer to the first character that is not in the gap. Character
-            /// pointer by this pointer is not in the structure and is not
-            /// defined.
-            u32* gap_start;
+    /// Pointer to the first vaild character that is outside of the
+    /// gap. If the gap is at the end of a buffer, this poitner poitns
+    /// outside to the allocated structure, and should not be
+    /// dereferenced.
+    u32* gap_end;
 
-            /// Pointer to the first vaild character that is outside of the
-            /// gap. If the gap is at the end of a buffer, this poitner poitns
-            /// outside to the allocated structure, and should not be
-            /// dereferenced.
-            u32* gap_end;
-
-            /// The content of the text buffer.
-            u32* buffer;
-#ifdef GAP_BUF_SSO
-        };
-    };
-#endif
-
-#ifdef GAP_BUF_SSO
-
-    bool sso_enabled() const;
-
-    void sso_move_from_sso_to_full();
-
-    size_t sso_gap_size() const;
-
-    size_t sso_size() const;
-
-#endif
+    /// The content of the text buffer.
+    u32* buffer;
 
     /// Must be called before any action with this data structure is done.
     void initialize();
