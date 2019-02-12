@@ -38,6 +38,77 @@ namespace g
     static bool buffer_is_dirty = true;
 }
 
+static void handle_key(key const& pressed_key)
+{
+    std::string const* shortcut_name;
+    if((shortcut_name = is_shortcut(pressed_key)) != nullptr)
+    {
+        LOG_WARN("Shortcut: %s", shortcut_name->c_str());
+    }
+    else if(pressed_key.codept == 0)
+    {
+        LOG_INFO("[%s] is a special key", keycode_names[pressed_key.keycode]);
+        // Handle special keys differently:
+        switch(pressed_key.keycode)
+        {
+            case keycode_values::BackSpace:
+                g::buf_pt.remove_character_backward();
+                break;
+
+            case keycode_values::Delete:
+                g::buf_pt.remove_character_forward();
+                break;
+
+            case keycode_values::Tab:
+                for(auto i = 0; i < 4; ++i)
+                    g::buf_pt.insert_character_at_point(' ');
+                break;
+
+            case keycode_values::Return:
+                g::buf_pt.insert_newline_at_point();
+                break;
+
+            case keycode_values::Up:
+                if(!g::buf_pt.line_up())
+                    LOG_WARN("Cannot move up!");
+                break;
+
+            case keycode_values::Down:
+                if(!g::buf_pt.line_down())
+                    LOG_WARN("Cannot move down!");
+                break;
+
+            case keycode_values::Left:
+                if(!g::buf_pt.character_left())
+                    LOG_WARN("Cannot move left!");
+                break;
+
+            case keycode_values::Right:
+                if(!g::buf_pt.character_right())
+                    LOG_WARN("Cannot move right!");
+                break;
+
+            case keycode_values::End:
+                if(!g::buf_pt.line_end())
+                    LOG_WARN("Cannot move to end!");
+                break;
+
+            case keycode_values::Home:
+                if(!g::buf_pt.line_start())
+                    LOG_WARN("Cannot move to home!");
+                break;
+
+            default:
+                break;
+        }
+    }
+    else
+    {
+        LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
+        g::buf_pt.insert_character_at_point(pressed_key.codept);
+    }
+}
+
 static void
 handle_event(xwindow* win)
 {
@@ -93,140 +164,66 @@ handle_event(xwindow* win)
                              prev_ev.xkey.keycode == ev.xkey.keycode);
 #endif
 
-            // TODO: This is the way to check modifiers! Make an internal represenation
-#define CHECK_FOR_KEY(KEY_NAME, MASK_NAME)              \
-            if(ev.xkey.state & MASK_NAME)               \
-                LOG_WARN(#KEY_NAME " is pressed!")
-            CHECK_FOR_KEY(Shift, ShiftMask);
-            CHECK_FOR_KEY(Lock, LockMask);
-            CHECK_FOR_KEY(Control, ControlMask);
-            CHECK_FOR_KEY(Mod1, Mod1Mask);
-            CHECK_FOR_KEY(Mod2, Mod2Mask);
-            CHECK_FOR_KEY(Mod3, Mod3Mask);
-            CHECK_FOR_KEY(Mod4, Mod4Mask);
-            CHECK_FOR_KEY(Mod5, Mod5Mask);
+            u32 xmodif_masks[] = {
+                ShiftMask,
+                LockMask,
+                ControlMask,
+                Mod1Mask,
+                Mod2Mask,
+                Mod3Mask,
+                Mod4Mask,
+                Mod5Mask,
+            };
+
+            u16 mod_mask = 0;
+            for(int i = 0; i < array_cnt(xmodif_masks); ++i)
+                if(ev.xkey.state & xmodif_masks[i])
+                    mod_mask |= (1 << i);
 
             // you might want to remove the control modifier, since it makes
             // stuff return control codes
             ev.xkey.state &= ~ControlMask;
 
             // get text from the key.
-            // it could be multiple characters in the case an IME is used.
-            // if you only care about latin-1 input, you can use XLookupString instead
-            // and skip all the XIM / XIC setup stuff
-
+            // TODO: It could be multiple characters in the case an IME is
+            //       used. I guess it is not supported yet.
             Xutf8LookupString(win->input_xic, &ev.xkey,
                               text, sizeof(text) - 1,
                               &keysym, &status);
 
-            if(status == XBufferOverflow)
+            if(status == XBufferOverflow || status == XLookupChars)
             {
-                // an IME was probably used, and wants to commit more than 32 chars.
-                // ignore this fairly unlikely case for now
+                PANIC("Probably an IME. This is not supported yet.");
+                return;
             }
 
-            if(status == XLookupChars)
+            if(status == XLookupBoth || status == XLookupKeySym)
             {
-                // some characters were returned without an associated key,
-                // again probably the result of an IME
-                LOG_INFO("Got chars: (%s)", text);
-            }
+                key pressed_key = { 0, 0, mod_mask };
 
-            if(status == XLookupBoth)
-            {
-                // we got one or more characters with an associated keysym
-                // (all the keysyms are listed in /usr/include/X11/keysymdef.h)
 
-                char* sym_name = XKeysymToString(keysym);
-                LOG_INFO("Got both: (%s), (%s)", text, sym_name);
-
-                // TODO: This _must_ be incorrect. Investigate.
-                switch(text[0])
+                // Although we have text values for some keys (like escape or
+                // return) we just treat them as special keys.
+                if(is_special_key(keysym))
                 {
-                    case 8:
-                    {
-                        g::buf_pt.remove_character_backward();
-
-                    } break;
-
-                    case 9:
-                    {
-                        for(auto i = 0; i < 4; ++i)
-                            g::buf_pt.insert_character_at_point(' ');
-                    } break;
-
-                    case 10:
-                        break;
-
-                    case 13:
-                    {
-                        g::buf_pt.insert_newline_at_point();
-                    } break;
-
-                    case 127:
-                    {
-                        g::buf_pt.remove_character_forward();
-                    } break;
-
-                    default:
-                    {
-                        g::buf_pt.insert_character_at_point(text[0]);
-                    } break;
+                    u16 internal_keycode = (keysym & 0xFF);
+                    pressed_key.keycode = internal_keycode;
                 }
-            }
-
-            if(status == XLookupKeySym)
-            {
-                LOG_INFO("Got keysym: (%s) (0x%lx)", keycode_names[keysym & 0xFF], keysym);
-            }
-
-            // Switch on some keys that we handle in the special way.
-            switch (keysym)
-            {
-                case XK_Escape:
+                else if(text[0])
                 {
-                    LOG_INFO("Escape was pressed!");
-                } break;
+                    auto [_, rdest] = utf8_to_utf32(reinterpret_cast<u8*>(&text[0]),
+                                                    reinterpret_cast<u8*>(&text[0]) + sizeof(text),
+                                                    &(pressed_key.codept),
+                                                    &(pressed_key.codept) + 1);
 
-                case XK_Up:
-                {
-                    if(!g::buf_pt.line_up())
-                        LOG_WARN("Cannot move up!");
-                } break;
+                    // Assert that we have parsed exacly one codept.
+                    ASSERT(rdest == &(pressed_key.codept) + 1);
+                }
+                else
+                    LOG_ERROR("Unsupported key: 0x%lx", keysym);
 
-                case XK_Down:
-                {
-                    if(!g::buf_pt.line_down())
-                        LOG_WARN("Cannot move down!");
-                } break;
-
-                case XK_Left:
-                {
-                    if(!g::buf_pt.character_left())
-                        LOG_WARN("Cannot move left!");
-                } break;
-
-                case XK_Right:
-                {
-                    if(!g::buf_pt.character_right())
-                        LOG_WARN("Cannot move right!");
-                } break;
-
-                case XK_End:
-                {
-                    if(!g::buf_pt.line_end())
-                        LOG_WARN("Cannot move to end!");
-                } break;
-
-                case XK_Home:
-                {
-                    if(!g::buf_pt.line_start())
-                        LOG_WARN("Cannot move to home!");
-                } break;
-
-                default:
-                {
-                } break;
+                // The key struct is build and now we can do something with it:
+                handle_key(pressed_key);
             }
         } break;
 

@@ -3,6 +3,10 @@
 
 #include "config.hpp"
 
+#include <utility>
+#include <functional>
+#include <string>
+
 enum modif : u16
 {
     shift = 1 << 0,
@@ -17,10 +21,9 @@ enum modif : u16
 
 struct key
 {
-    /// The utf32 codepoint for the keypress, or 0 if none codept is associated
-    /// with the keypress. Characters like esc, return, etc are not stored as
-    /// codepoints. For them the codepoint is set to 0, and (TODO: fieldname) is
-    /// used.
+    // The utf32 codepoint for the keypress, or 0 if none codept is associated
+    // with the keypress. Characters like esc, return, etc are not stored as
+    // codepoints. For them the codepoint is set to 0, and keycode is used.
     u32 codept;
 
     // In order to use this field codept must be set to 0. This is the code of
@@ -31,7 +34,7 @@ struct key
     u16 mod_mask;
 };
 
-// TODO: This depends on xmodmap and is just basic placeholder.
+// TODO: This should depend on xmodmap and is just basic placeholder.
 static char const* modif_names[] = {
     "Shift",
     "Caps_Lock",
@@ -41,6 +44,134 @@ static char const* modif_names[] = {
     "",
     "Super"
     "Alt_R"
+};
+
+// The enumeration of every supported keycode value. Their names correspond to
+// their xlib names (they have just removed leading XK_) and their values are
+// just and'ed with 0xFF.
+enum keycode_values : u16
+{
+    BackSpace = 0x08,
+    Tab = 0x09,
+    Linefeed = 0x0a,
+    Clear = 0x0b,
+    Return = 0x0d,
+    Pause = 0x13,
+    Scroll_Lock = 0x14,
+    Sys_Req = 0x15,
+    Escape = 0x1b,
+    Home = 0x50,
+    Left = 0x51,
+    Up = 0x52,
+    Right = 0x53,
+    Down = 0x54,
+    Page_Up = 0x55,
+    Prior = 0x55,
+    Next = 0x56,
+    Page_Down = 0x56,
+    End = 0x57,
+    Begin = 0x58,
+    Select = 0x60,
+    Print = 0x61,
+    Execute = 0x62,
+    Insert = 0x63,
+    Undo = 0x65,
+    Redo = 0x66,
+    Menu = 0x67,
+    Find = 0x68,
+    Cancel = 0x69,
+    Help = 0x6a,
+    Break = 0x6b,
+    Mode_switch = 0x7e,
+    script_switch = 0x7e,
+    Num_Lock = 0x7f,
+// KP_Space = 0x80,
+    KP_Tab = 0x89,
+    KP_Enter = 0x8d,
+    KP_F1 = 0x91,
+    KP_F2 = 0x92,
+    KP_F3 = 0x93,
+    KP_F4 = 0x94,
+    KP_Home = 0x95,
+    KP_Left = 0x96,
+    KP_Up = 0x97,
+    KP_Right = 0x98,
+    KP_Down = 0x99,
+    KP_Page_Up = 0x9a,
+    KP_Prior = 0x9a,
+    KP_Next = 0x9b,
+    KP_Page_Down = 0x9b,
+    KP_End = 0x9c,
+    KP_Begin = 0x9d,
+    KP_Insert = 0x9e,
+    KP_Delete = 0x9f,
+// KP_Multiply = 0xaa,
+// KP_Add = 0xab,
+// KP_Separator = 0xac,
+// KP_Subtract = 0xad,
+// KP_Decimal = 0xae,
+// KP_Divide = 0xaf,
+// KP_0 = 0xb0,
+// KP_1 = 0xb1,
+// KP_2 = 0xb2,
+// KP_3 = 0xb3,
+// KP_4 = 0xb4,
+// KP_5 = 0xb5,
+// KP_6 = 0xb6,
+// KP_7 = 0xb7,
+// KP_8 = 0xb8,
+// KP_9 = 0xb9,
+// KP_Equal = 0xbd,
+    F1 = 0xbe,
+    F2 = 0xbf,
+    F3 = 0xc0,
+    F4 = 0xc1,
+    F5 = 0xc2,
+    F6 = 0xc3,
+    F7 = 0xc4,
+    F8 = 0xc5,
+    F9 = 0xc6,
+    F10 = 0xc7,
+    F11 = 0xc8,
+    F12 = 0xc9,
+    F13 = 0xca,
+    F14 = 0xcb,
+    F15 = 0xcc,
+    F16 = 0xcd,
+    F17 = 0xce,
+    F18 = 0xcf,
+    F19 = 0xd0,
+    F20 = 0xd1,
+    F21 = 0xd2,
+    F22 = 0xd3,
+    F23 = 0xd4,
+    F24 = 0xd5,
+    F25 = 0xd6,
+    F26 = 0xd7,
+    F27 = 0xd8,
+    F28 = 0xd9,
+    F29 = 0xda,
+    F30 = 0xdb,
+    F31 = 0xdc,
+    F32 = 0xdd,
+    F33 = 0xde,
+    F34 = 0xdf,
+    F35 = 0xe0,
+    Shift_L = 0xe1,
+    Shift_R = 0xe2,
+    Control_L = 0xe3,
+    Control_R = 0xe4,
+    Caps_Lock = 0xe5,
+    Shift_Lock = 0xe6,
+    Meta_L = 0xe7,
+    Meta_R = 0xe8,
+    Alt_L = 0xe9,
+    Alt_R = 0xea,
+    Super_L = 0xeb,
+    Super_R = 0xec,
+    Hyper_L = 0xed,
+    Hyper_R = 0xee,
+    Delete = 0xff,
 };
 
 // The list of special keys, not treated as insertable text, though we store
@@ -306,5 +437,10 @@ static char const* keycode_names[] = {
     "",
     "Delete",
 };
+
+static bool is_special_key(KeySym ksm);
+
+static inline std::string const* is_shortcut(key const& k);
+
 
 #endif // INTERNALS_HPP
