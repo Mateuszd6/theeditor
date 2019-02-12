@@ -48,7 +48,6 @@ static void handle_key(key const& pressed_key)
     else if(pressed_key.codept == 0)
     {
         LOG_INFO("[%s] is a special key", keycode_names[pressed_key.keycode]);
-        // Handle special keys differently:
         switch(pressed_key.keycode)
         {
             case keycode_values::BackSpace:
@@ -220,7 +219,10 @@ handle_event(xwindow* win)
                     ASSERT(rdest == &(pressed_key.codept) + 1);
                 }
                 else
+                {
                     LOG_ERROR("Unsupported key: 0x%lx", keysym);
+                    break;
+                }
 
                 // The key struct is build and now we can do something with it:
                 handle_key(pressed_key);
