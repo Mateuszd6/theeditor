@@ -1,3 +1,5 @@
+// TODO: Figure out a good file and move it there.
+
 #ifndef INTERNALS_HPP
 #define INTERNALS_HPP
 

@@ -10,7 +10,7 @@
 
 namespace g
 {
-    // TODO: For now we'll use only one font.
+    // Global font props.
     static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
     static char const* colornames[] = {
         "#272822", // monokai-background
@@ -27,14 +27,13 @@ namespace g
         "#057405", // NOTE - green
         "#F61010", // TOD0 - red (spelled this way to avoid grep todo)
     };
-
     static i32 font_ascent;
     static i32 font_descent;
     static i32 font_height;
 
+    // Global buffer props.
     static buffer* file_buffer;
     static buffer_point buf_pt;
-
     static bool buffer_is_dirty = true;
 }
 
@@ -51,54 +50,65 @@ static void handle_key(key const& pressed_key)
         switch(pressed_key.keycode)
         {
             case keycode_values::BackSpace:
+            {
                 g::buf_pt.remove_character_backward();
-                break;
+            } break;
 
             case keycode_values::Delete:
+            {
                 g::buf_pt.remove_character_forward();
-                break;
+            } break;
 
             case keycode_values::Tab:
+            {
                 for(auto i = 0; i < 4; ++i)
                     g::buf_pt.insert_character_at_point(' ');
-                break;
+            } break;
 
             case keycode_values::Return:
+            {
                 g::buf_pt.insert_newline_at_point();
-                break;
+            } break;
 
             case keycode_values::Up:
+            {
                 if(!g::buf_pt.line_up())
                     LOG_WARN("Cannot move up!");
-                break;
+            } break;
 
             case keycode_values::Down:
+            {
                 if(!g::buf_pt.line_down())
                     LOG_WARN("Cannot move down!");
-                break;
+            } break;
 
             case keycode_values::Left:
+            {
                 if(!g::buf_pt.character_left())
                     LOG_WARN("Cannot move left!");
-                break;
+            } break;
 
             case keycode_values::Right:
+            {
                 if(!g::buf_pt.character_right())
                     LOG_WARN("Cannot move right!");
-                break;
+            } break;
 
             case keycode_values::End:
+            {
                 if(!g::buf_pt.line_end())
                     LOG_WARN("Cannot move to end!");
-                break;
+            } break;
 
             case keycode_values::Home:
+            {
                 if(!g::buf_pt.line_start())
                     LOG_WARN("Cannot move to home!");
-                break;
+            } break;
 
             default:
-                break;
+            {
+            } break;
         }
     }
     else
@@ -147,22 +157,11 @@ handle_event(xwindow* win)
         {
             g::buffer_is_dirty = true;
 
-            // note: if you just want the XK_ keysym, then you can just use
-            // XLookupKeysym(&ev.xkey, 0);
-            // and ignore all the XIM / XIC / status etc stuff
-
             Status status;
             KeySym keysym = NoSymbol;
             char text[32] = {};
 
-            LOG_WARN("Key press!");
-#if 0
-            // if you want to tell if this was a repeated key, this trick seems reliable.
-            int is_repeat = (prev_ev.type == KeyRelease &&
-                             prev_ev.xkey.time    == ev.xkey.time &&
-                             prev_ev.xkey.keycode == ev.xkey.keycode);
-#endif
-
+            // TODO: This should be unrolled in the optimized build.
             u32 xmodif_masks[] = {
                 ShiftMask,
                 LockMask,
@@ -173,7 +172,6 @@ handle_event(xwindow* win)
                 Mod4Mask,
                 Mod5Mask,
             };
-
             u16 mod_mask = 0;
             for(int i = 0; i < array_cnt(xmodif_masks); ++i)
                 if(ev.xkey.state & xmodif_masks[i])
