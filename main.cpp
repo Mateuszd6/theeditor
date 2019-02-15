@@ -50,9 +50,13 @@ static void handle_key(key const& pressed_key)
         {
             undo();
         }
+        else
+            break_undo_chain();
     }
     else if(pressed_key.codept == 0)
     {
+        break_undo_chain();
+
         LOG_INFO("[%s] is a special key", keycode_names[pressed_key.keycode]);
         switch(pressed_key.keycode)
         {
@@ -61,24 +65,56 @@ static void handle_key(key const& pressed_key)
                 DEBUG_print_state();
             } break;
 
+            // TODO: Undo can be recorded only if the operation succeeded.
             case keycode_values::BackSpace:
             {
+                u32 removed_ch = (g::buf_pt
+                                  .buffer_ptr
+                                  ->get_line(g::buf_pt.curr_line)
+                                  ->get(g::buf_pt.curr_idx - 1));
+
+                add_undo(undo_type::remove, &removed_ch, 1,
+                         g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
+
                 g::buf_pt.remove_character_backward();
             } break;
 
+            // TODO: Undo can be recorded only if the operation succeeded.
             case keycode_values::Delete:
             {
+                u32 removed_ch = (g::buf_pt
+                                   .buffer_ptr
+                                  ->get_line(g::buf_pt.curr_line)
+                                  ->get(g::buf_pt.curr_idx));
+
+                add_undo(undo_type::remove_inplace,
+                         &removed_ch, 1,
+                         g::buf_pt.curr_line, g::buf_pt.curr_idx);
+
                 g::buf_pt.remove_character_forward();
             } break;
 
             case keycode_values::Tab:
             {
+                u32 buffer[] = { s_cast<u32>(' '),
+                                 s_cast<u32>(' '),
+                                 s_cast<u32>(' '),
+                                 s_cast<u32>(' ')
+                };
+
+                add_undo(undo_type::insert, buffer, 4,
+                         g::buf_pt.curr_line, g::buf_pt.curr_idx);
+
                 for(auto i = 0; i < 4; ++i)
+                {
                     g::buf_pt.insert_character_at_point(' ');
+                }
             } break;
 
             case keycode_values::Return:
             {
+                u32 newline_ch = static_cast<u32>('\n');
+                add_undo(undo_type::insert, &newline_ch, 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
                 g::buf_pt.insert_newline_at_point();
             } break;
 
@@ -125,6 +161,8 @@ static void handle_key(key const& pressed_key)
     }
     else
     {
+        break_undo_chain();
+
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
         add_undo(undo_type::insert, &(pressed_key.codept), 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
         g::buf_pt.insert_character_at_point(pressed_key.codept);

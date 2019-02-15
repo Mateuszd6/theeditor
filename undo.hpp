@@ -3,8 +3,17 @@
 
 enum struct undo_type
 {
+    // Buffer after undoing the remove:
+    // | more text.
+    // This is| more text.
     insert,
     remove,
+
+    // Buffer after undoing the remove_inplace:
+    // | more text.
+    // |This is more text.
+    insert_inplace,
+    remove_inplace,
 };
 
 struct undo_metadata

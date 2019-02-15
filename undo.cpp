@@ -51,6 +51,63 @@ add_undo(undo_type type, u32 const* data, mm len, u64 line, u64 index)
 }
 
 static void
+apply_remove(u32* data_head, mm len, u64 line, u64 index)
+{
+    // TODO: This should reset last_line_idx. Make a safe ctor.
+    g::buf_pt.curr_line = line;
+    g::buf_pt.curr_idx = index;
+
+    for(int i = 0; i < len; ++i)
+    {
+        ASSERT(g::buf_pt.point_is_valid());
+
+        if(data_head[i] == '\n')
+        {
+            // Assert that we are at the end of the line.
+            ASSERT(g::buf_pt.buffer_ptr
+                   ->get_line(g::buf_pt.curr_line)
+                   ->size() == g::buf_pt.curr_idx);
+
+            bool line_removed = g::buf_pt.remove_character_forward();
+            ASSERT(line_removed);
+        }
+        else
+        {
+            ASSERT(g::buf_pt.buffer_ptr
+                   ->get_line(g::buf_pt.curr_line)
+                   ->get(g::buf_pt.curr_idx) == data_head[i]);
+
+            bool removed = g::buf_pt.remove_character_forward();
+            ASSERT(removed);
+        }
+    }
+}
+
+static void
+apply_insert(u32* data_head, mm len, u64 line, u64 index)
+{
+    // TODO: This should reset last_line_idx. Make a safe ctor.
+    g::buf_pt.curr_line = line;
+    g::buf_pt.curr_idx = index;
+
+    for(int i = 0; i < len; ++i)
+    {
+        ASSERT(g::buf_pt.point_is_valid());
+
+        if(data_head[i] == static_cast<u32>('\n'))
+        {
+            bool line_added = g::buf_pt.insert_newline_at_point();
+            ASSERT(line_added);
+        }
+        else
+        {
+            bool inserted = g::buf_pt.insert_character_at_point(data_head[i]);
+            ASSERT(inserted);
+        }
+    }
+}
+
+static void
 undo()
 {
     if (g::redo_head == &(g::undo_buffer[0]))
@@ -78,22 +135,16 @@ undo()
                      len, mdata->line, mdata->index, buffer);
 
             add_undo_impl(undo_type::remove, data_head, len, mdata->line, mdata->index);
-            // TODO: Support newline character.
-            for(int i = 0; i < len; ++i)
-            {
-                g::buf_pt.curr_line = mdata->line;
-                g::buf_pt.curr_idx = mdata->index;
+            apply_remove(data_head, len, mdata->line, mdata->index);
+        } break;
 
-                // Assert that the point is valid, and we are removing
-                // character, that we suspect to remove.
-                ASSERT(g::buf_pt.point_is_valid());
-                ASSERT(g::buf_pt.buffer_ptr
-                       ->get_line(g::buf_pt.curr_line)
-                       ->get(g::buf_pt.curr_idx) == data_head[i]);
+        case undo_type::insert_inplace:
+        {
+            LOG_WARN("Undoing insertion _inplace_ of [%ld] characters at %lu:%lu: %s",
+                     len, mdata->line, mdata->index, buffer);
 
-                bool removed = g::buf_pt.remove_character_forward();
-                ASSERT(removed);
-            }
+            add_undo_impl(undo_type::remove_inplace, data_head, len, mdata->line, mdata->index);
+            apply_remove(data_head, len, mdata->line, mdata->index);
         } break;
 
         case undo_type::remove:
@@ -102,15 +153,21 @@ undo()
                      len, mdata->line, mdata->index, buffer);
 
             add_undo_impl(undo_type::insert, data_head, len, mdata->line, mdata->index);
-            // TODO: Support newline character.
+            apply_insert(data_head, len, mdata->line, mdata->index);
+        } break;
+
+        case undo_type::remove_inplace:
+        {
+            LOG_WARN("Undoing remove _inplace_ of [%ld] characters at %lu:%lu: %s",
+                     len, mdata->line, mdata->index, buffer);
+
+            add_undo_impl(undo_type::insert_inplace, data_head, len, mdata->line, mdata->index);
+            apply_insert(data_head, len, mdata->line, mdata->index);
+
             for(int i = 0; i < len; ++i)
             {
-                g::buf_pt.curr_line = mdata->line;
-                g::buf_pt.curr_idx = mdata->index;
-                ASSERT(g::buf_pt.point_is_valid());
-
-                bool inserted = g::buf_pt.insert_character_at_point(data_head[i]);
-                ASSERT(inserted);
+                bool moved_left = g::buf_pt.character_left();
+                ASSERT(moved_left);
             }
         } break;
     }
