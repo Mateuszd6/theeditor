@@ -5,6 +5,7 @@
 #include "strref.hpp"
 #include "utf.hpp"
 #include "internals.hpp"
+#include "undo.hpp"
 
 #include <thread>
 
@@ -43,12 +44,23 @@ static void handle_key(key const& pressed_key)
     if((shortcut_name = is_shortcut(pressed_key)) != nullptr)
     {
         LOG_WARN("Shortcut: %s", shortcut_name->c_str());
+
+        // TODO: Checking the name makes no sense, but is temporary anyways.
+        if (*shortcut_name == "Undo")
+        {
+            undo();
+        }
     }
     else if(pressed_key.codept == 0)
     {
         LOG_INFO("[%s] is a special key", keycode_names[pressed_key.keycode]);
         switch(pressed_key.keycode)
         {
+            case keycode_values::Escape:
+            {
+                DEBUG_print_state();
+            } break;
+
             case keycode_values::BackSpace:
             {
                 g::buf_pt.remove_character_backward();
@@ -114,6 +126,7 @@ static void handle_key(key const& pressed_key)
     else
     {
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
+        add_undo(undo_type::insert, &(pressed_key.codept), 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
         g::buf_pt.insert_character_at_point(pressed_key.codept);
     }
 }
@@ -476,3 +489,4 @@ main()
 #include "xwindow.cpp"
 #include "utf.cpp"
 #include "internals.cpp"
+#include "undo.cpp"

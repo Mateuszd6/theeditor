@@ -3,6 +3,7 @@
 namespace g
 {
     static std::pair<key, std::string> keyboard_shortcuts[] = {
+        { key{ u32('z'), 0, ctrl }, "Undo" },
         { key{ u32('c'), 0, ctrl }, "Copy" },
         { key{ u32('v'), 0, ctrl }, "Paste" },
         { key{ u32('x'), 0, ctrl }, "Kill" },
