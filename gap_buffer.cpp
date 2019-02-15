@@ -103,14 +103,12 @@ void gap_buffer::insert_at_point(umm point, u32 character)
     ASSERT(gap_size() > GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND);
 }
 
-#if 0
-void gap_buffer::insert_sequence_at_point(umm point, misc::length_buffer sequence)
+void gap_buffer::insert_sequence_at_point(umm point, u32* begin, u32* end)
 {
-    reserve_gap(size() + sequence.length);
-    for(auto i = 0_u64; i < sequence.length; ++i)
-        insert_at_point(point + i, sequence.data[i]);
+    reserve_gap(size() + end - begin + 1);
+    while(begin != end)
+        insert_at_point(point++, *begin++);
 }
-#endif
 
 void gap_buffer::replace_at_point(umm point, u32 character)
 {

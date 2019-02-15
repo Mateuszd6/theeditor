@@ -96,10 +96,11 @@ static void handle_key(key const& pressed_key)
 
             case keycode_values::Tab:
             {
-                u32 buffer[] = { s_cast<u32>(' '),
-                                 s_cast<u32>(' '),
-                                 s_cast<u32>(' '),
-                                 s_cast<u32>(' ')
+                u32 buffer[] = {
+                    s_cast<u32>(' '),
+                    s_cast<u32>(' '),
+                    s_cast<u32>(' '),
+                    s_cast<u32>(' ')
                 };
 
                 add_undo(undo_type::insert, buffer, 4,

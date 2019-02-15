@@ -61,11 +61,9 @@ struct gap_buffer
     /// necesarry. Can exapnd buffer memory.
     void insert_at_point(umm point, u32 character);
 
-#if 0 // TODO(PROFILING): Make this fucntion and use it when it comes to profiling.
     /// Insert character at point. Will move the gap to the pointed location if
     /// necesarry. Can exapnd buffer memory.
-    void insert_sequence_at_point(umm point, misc::length_buffer sequence);
-#endif
+    void insert_sequence_at_point(umm point, u32* begin, u32* end);
 
     /// Insert character at point. This doesn't move a gap or expand memory.
     void replace_at_point(umm point, u32 character);
