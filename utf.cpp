@@ -237,7 +237,7 @@ utf8_to_utf32_dec_advc_ascii_optimized(u8 const*& src, u32*& dest)
 }
 } // namespace detail
 
-static inline std::pair<u8 const*, u32 const*>
+static inline std::pair<u8 const*, u32*>
 utf8_to_utf32(u8 const* src_begin,
               u8 const* src_end,
               u32* dest_begin,
@@ -256,7 +256,7 @@ utf8_to_utf32(u8 const* src_begin,
     return std::make_pair(src_begin, dest_begin);
 }
 
-static inline std::pair<u32 const*, u8 const*>
+static inline std::pair<u32 const*, u8*>
 utf32_to_utf8(u32 const* src_begin,
               u32 const* src_end,
               u8* dest_begin,

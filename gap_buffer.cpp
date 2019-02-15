@@ -5,6 +5,9 @@
 
 #include "gap_buffer.hpp"
 
+// TODO: Figure out if memcpy can be used instead of memmove. At least in some
+//       places.
+
 void gap_buffer::initialize()
 {
     capacity = GAP_BUF_DEFAULT_CAPACITY;
@@ -26,14 +29,14 @@ void gap_buffer::move_gap_to_point(umm point)
     else if (buffer + point < gap_start)
     {
         auto diff = gap_start - (buffer + point);
-        memcpy(gap_end - diff, buffer + point, sizeof(u32) * diff);
+        memmove(gap_end - diff, buffer + point, sizeof(u32) * diff);
         gap_start -= diff;
         gap_end -= diff;
     }
     else if (buffer + point > gap_start)
     {
         auto diff = point - (gap_start - buffer);
-        memcpy(gap_start, gap_end, sizeof(u32) * diff);
+        memmove(gap_start, gap_end, sizeof(u32) * diff);
         gap_start += diff;
         gap_end += diff;
     }
@@ -48,7 +51,7 @@ void gap_buffer::move_gap_to_buffer_end()
     else
     {
         auto move_from_the_end = (buffer + capacity) - gap_end;
-        memcpy(gap_start, gap_end, sizeof(u32) * move_from_the_end);
+        memmove(gap_start, gap_end, sizeof(u32) * move_from_the_end);
         gap_start += move_from_the_end;
         gap_end += move_from_the_end;
     }
@@ -66,9 +69,9 @@ void gap_buffer::reserve_gap(umm n)
         auto new_gap_size = n - gap_size();
         auto new_size = capacity + new_gap_size;
 
-        // TODO(Testing): Test it with custom realloc that always moves the memory.
+        // TODO: realloc.
         auto new_ptr = static_cast<u32*>(malloc(sizeof(u32) * new_size));
-        memcpy(new_ptr, buffer, sizeof(u32) * capacity);
+        memmove(new_ptr, buffer, sizeof(u32) * capacity);
         free(buffer);
 
         if (new_ptr)
@@ -82,8 +85,7 @@ void gap_buffer::reserve_gap(umm n)
     }
 }
 
-// TODO(Testing): Battle-test this. Watch out for allocations!
-void gap_buffer::insert_at_point(umm point, u32 character) // LATIN2 characters only.
+void gap_buffer::insert_at_point(umm point, u32 character)
 {
     ASSERT(point <= size());
 
@@ -102,7 +104,7 @@ void gap_buffer::insert_at_point(umm point, u32 character) // LATIN2 characters 
 }
 
 #if 0
-void gap_buffer::insert_sequence_at_point(umm point, misc::length_buffer sequence) // LATIN2 characters only
+void gap_buffer::insert_sequence_at_point(umm point, misc::length_buffer sequence)
 {
     reserve_gap(size() + sequence.length);
     for(auto i = 0_u64; i < sequence.length; ++i)
@@ -192,8 +194,8 @@ char* gap_buffer::to_c_str() const
     if(sso_enabled())
     {
         auto result = static_cast<char*>(malloc(sizeof(u32) * GAP_BUF_SSO_CAP));
-        memcpy(result, data, GAP_BUF_SSO_GAP_START);
-        memcpy(result + GAP_BUF_SSO_GAP_START,
+        memmove(result, data, GAP_BUF_SSO_GAP_START);
+        memmove(result + GAP_BUF_SSO_GAP_START,
                data + GAP_BUF_SSO_GAP_END,
                GAP_BUF_SSO_CAP - GAP_BUF_SSO_GAP_END);
 

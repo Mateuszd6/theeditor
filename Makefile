@@ -4,9 +4,9 @@ CC=clang++
 CFLAGS=-std=c++17 -fno-exceptions -fno-rtti
 
 DISABLED_WARNINGS=-Wno-padded \
-                  -Wno-format-nonliteral \
-                  -Wno-sign-conversion \
-		  -Wno-zero-as-null-pointer-constant
+                  -Wno-sign-conversion
+
+SANITIZERS=-fsanitize=address,undefined
 
 ifeq ($(CC),clang++)
 	WARN_FLAGS=-Weverything
@@ -14,7 +14,8 @@ ifeq ($(CC),clang++)
 			     -Wno-gnu-zero-variadic-macro-arguments \
 			     -Wno-gnu-anonymous-struct \
 			     -Wno-nested-anon-types \
-			     -Wno-vla-extension -Wno-vla
+			     -Wno-vla-extension \
+			     -Wno-vla
 else
 	WARN_FLAGS=-Wall -Wextra -Wshadow
 endif
@@ -29,7 +30,7 @@ all: debug
 
 debug:
 	$(CC) $(CFLAGS) $(WARN_FLAGS) $(DISABLED_WARNINGS) $(DEBUG_FLAGS)   \
-	$(INCLUDE_FLAGS) $(LINKER_FLAGS) main.cpp -o program
+	$(INCLUDE_FLAGS) $(LINKER_FLAGS) $(SANITIZERS) main.cpp -o program
 release:
 	$(CC) $(CFLAGS) $(WARN_FLAGS) $(DISABLED_WARNINGS) $(RELEASE_FLAGS) \
 	$(INCLUDE_FLAGS) $(LINKER_FLAGS) main.cpp -o program

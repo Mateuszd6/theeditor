@@ -8,7 +8,7 @@ xwindow::xwindow(int width_, int heigth_)
     height = heigth_;
 
     // TODO: CHECK IF THEY HAVE SUCCEEDED.
-    dpy = XOpenDisplay(0);
+    dpy = XOpenDisplay(nullptr);
     scr = DefaultScreen(dpy);
     vis = DefaultVisual(dpy, 0);
     cmap = DefaultColormap(dpy, scr);
@@ -35,7 +35,7 @@ xwindow::xwindow(int width_, int heigth_)
                         &wa);
 
     canvas = XCreatePixmap(dpy, win, width, height, DefaultDepth(dpy, scr));
-    gc = XCreateGC(dpy, win, 0, 0);
+    gc = XCreateGC(dpy, win, 0, nullptr);
     draw = XftDrawCreate(dpy, canvas, vis, cmap);
 
     XSetLineAttributes(dpy, gc, 1, LineSolid, CapButt, JoinMiter);
@@ -46,12 +46,12 @@ xwindow::xwindow(int width_, int heigth_)
     // loads the XMODIFIERS environment variable to see what IME to use
     XSetLocaleModifiers("");
 
-    input_xim = XOpenIM(dpy, 0, 0, 0);
+    input_xim = XOpenIM(dpy, nullptr, nullptr, nullptr);
     if(!input_xim)
     {
         // fallback to internal input method
         XSetLocaleModifiers("@im=none");
-        input_xim = XOpenIM(dpy, 0, 0, 0);
+        input_xim = XOpenIM(dpy, nullptr, nullptr, nullptr);
     }
 
     input_xic = XCreateIC(input_xim,
@@ -131,7 +131,7 @@ xwindow::set_clamp_rect(i16 x, i16 y, u16 w, u16 h)
 void
 xwindow::clear_clamp_rect()
 {
-    XftDrawSetClip(draw, 0);
+    XftDrawSetClip(draw, nullptr);
 }
 
 void
@@ -145,7 +145,7 @@ xwindow::draw_rect(int x, int y, int w, int h, int colorid)
 }
 
 void
-xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, umm len, int* adv)
+xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, mm len, int* adv)
 {
     if(adv)
     {
@@ -163,17 +163,6 @@ xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, umm len, int* adv)
                       r_cast<FcChar32 const*>(ptr),
                       s_cast<int>(len));
 }
-
-#if 0
-void
-xwindow::draw_text(int x, int y, int colorid, u32 const* txt, int* adv)
-{
-    draw_text(x, y , colorid,
-              txt,
-              s_cast<i32>(strlen(txt)),
-              adv);
-}
-#endif
 
 void
 xwindow::draw_text(int x, int y, int colorid, strref strref, int* adv)

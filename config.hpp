@@ -72,37 +72,37 @@ namespace intr
         return __builtin_expect(value, expected_value);
     }
 
-    static inline int clz32(i32 val)
+    static inline int clz32(u32 val)
     {
         static_assert(sizeof(unsigned int) == 4, "");
         return __builtin_clz(val);
     }
 
-    static inline int clz64(i64 val)
+    static inline int clz64(u64 val)
     {
         static_assert(sizeof(unsigned long long) == 8, "");
         return __builtin_clzll(val);
     }
 
-    static inline int ctz32(i32 val)
+    static inline int ctz32(u32 val)
     {
         static_assert(sizeof(unsigned int) == 4, "");
         return __builtin_ctz(val);
     }
 
-    static inline int ctz64(i64 val)
+    static inline int ctz64(u64 val)
     {
         static_assert(sizeof(unsigned long long) == 8, "");
         return __builtin_ctzll(val);
     }
 
-    static inline int popcnt32(i32 val)
+    static inline int popcnt32(u32 val)
     {
         static_assert(sizeof(unsigned int) == 4, "");
         return __builtin_popcount(val);
     }
 
-    static inline int popcnt64(i64 val)
+    static inline int popcnt64(u64 val)
     {
         static_assert(sizeof(unsigned long long) == 8, "");
         return __builtin_popcountll(val);
@@ -125,12 +125,12 @@ namespace intr
     }
 
     // TODO: clz and clz can be achieved with bit scan forward.
-    static inline int clz32(i32 val) { static_assert("clz32 - not implemented"); }
-    static inline int clz64(i64 val) { static_assert("clz64 - not implemented"); }
-    static inline int ctz32(i32 val) { static_assert("ctz32 - not implemented"); }
-    static inline int ctz64(i64 val) { static_assert("ctz64 - not implemented"); }
-    inline inline int popcnt32(i32 val) { return s_cast<int>(__popcnt(val)); }
-    inline inline int popcnt64(i64 val) { return s_cast<int>(__popcnt64(val)); }
+    static inline int clz32(u32 val) { static_assert("clz32 - not implemented"); }
+    static inline int clz64(u64 val) { static_assert("clz64 - not implemented"); }
+    static inline int ctz32(u32 val) { static_assert("ctz32 - not implemented"); }
+    static inline int ctz64(u64 val) { static_assert("ctz64 - not implemented"); }
+    inline inline int popcnt32(u32 val) { return s_cast<int>(__popcnt(val)); }
+    inline inline int popcnt64(u64 val) { return s_cast<int>(__popcnt64(val)); }
 #else // Looks like msvc does not support it.
 #  error "Intrinsics probably won't work for You, as the compiler is unknown."
 #endif
