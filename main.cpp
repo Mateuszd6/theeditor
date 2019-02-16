@@ -65,33 +65,70 @@ static void handle_key(key const& pressed_key)
                 DEBUG_print_state();
             } break;
 
-            // TODO: Undo can be recorded only if the operation succeeded.
+            // TODO: Undo and buffer pt logic must be merge.
             case keycode_values::BackSpace:
             {
-                u32 removed_ch = (g::buf_pt
-                                  .buffer_ptr
-                                  ->get_line(g::buf_pt.curr_line)
-                                  ->get(g::buf_pt.curr_idx - 1));
+                if (g::buf_pt.curr_idx > 0)
+                {
+                    u32 removed_ch = (g::buf_pt
+                                      .buffer_ptr
+                                      ->get_line(g::buf_pt.curr_line)
+                                      ->get(g::buf_pt.curr_idx - 1));
 
-                add_undo(undo_type::remove, &removed_ch, 1,
-                         g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
+                    add_undo(undo_type::remove, &removed_ch, 1,
+                             g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
+                    bool char_removed = g::buf_pt.remove_character_backward();
+                    ASSERT(char_removed);
+                }
+                else if (g::buf_pt.curr_line > 0)
+                {
+                    u32 removed_ch = static_cast<u32>('\n');
 
-                g::buf_pt.remove_character_backward();
+                    add_undo(undo_type::remove, &removed_ch, 1,
+                             g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
+                    bool char_removed = g::buf_pt.remove_character_backward();
+                    ASSERT(char_removed);
+                }
+                else
+                {
+                    bool char_removed = g::buf_pt.remove_character_backward();
+                    ASSERT(!char_removed);
+                }
             } break;
 
-            // TODO: Undo can be recorded only if the operation succeeded.
+            // TODO: Undo and buffer pt logic must be merge. Handle the copypaste.
             case keycode_values::Delete:
             {
-                u32 removed_ch = (g::buf_pt
-                                   .buffer_ptr
+                if (g::buf_pt.curr_idx < (g::buf_pt.buffer_ptr
+                                          ->get_line(g::buf_pt.curr_line)
+                                          ->size()))
+                {
+                    u32 removed_ch = (g::buf_pt
+                                  .buffer_ptr
                                   ->get_line(g::buf_pt.curr_line)
                                   ->get(g::buf_pt.curr_idx));
 
-                add_undo(undo_type::remove_inplace,
-                         &removed_ch, 1,
-                         g::buf_pt.curr_line, g::buf_pt.curr_idx);
+                    add_undo(undo_type::remove_inplace,
+                             &removed_ch, 1,
+                             g::buf_pt.curr_line, g::buf_pt.curr_idx);
+                    bool char_removed = g::buf_pt.remove_character_forward();
+                    ASSERT(char_removed);
+                }
+                else if (g::buf_pt.curr_line < g::buf_pt.buffer_ptr->size() - 1)
+                {
+                    u32 removed_ch = static_cast<u32>('\n');
 
-                g::buf_pt.remove_character_forward();
+                    add_undo(undo_type::remove_inplace,
+                             &removed_ch, 1,
+                             g::buf_pt.curr_line, g::buf_pt.curr_idx);
+                    bool char_removed = g::buf_pt.remove_character_forward();
+                    ASSERT(char_removed);
+                }
+                else
+                {
+                    bool char_removed = g::buf_pt.remove_character_forward();
+                    ASSERT(!char_removed);
+                }
             } break;
 
             case keycode_values::Tab:
