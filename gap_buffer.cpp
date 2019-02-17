@@ -233,10 +233,10 @@ char* gap_buffer::to_c_str() const
 
 void gap_buffer::to_str_refs(strref* refs) const
 {
-    refs[0] = strref{ c_cast<u32*>(buffer),
-                      c_cast<u32*>(gap_start) };
-    refs[1] = strref{ c_cast<u32*>(gap_end),
-                      c_cast<u32*>(buffer + capacity) };
+    refs[0] = strref{ const_cast<u32*>(buffer),
+                      const_cast<u32*>(gap_start) };
+    refs[1] = strref{ const_cast<u32*>(gap_end),
+                      const_cast<u32*>(buffer + capacity) };
 }
 
 void gap_buffer::DEBUG_print_state() const

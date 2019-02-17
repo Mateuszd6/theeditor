@@ -134,10 +134,10 @@ static void handle_key(key const& pressed_key)
             case keycode_values::Tab:
             {
                 u32 buffer[] = {
-                    s_cast<u32>(' '),
-                    s_cast<u32>(' '),
-                    s_cast<u32>(' '),
-                    s_cast<u32>(' ')
+                    static_cast<u32>(' '),
+                    static_cast<u32>(' '),
+                    static_cast<u32>(' '),
+                    static_cast<u32>(' ')
                 };
 
                 add_undo(undo_type::insert, buffer, 4,
@@ -343,11 +343,11 @@ blit_letter(xwindow* win, char ch,
             i32 basex, i32 basey,
             int* advance, int colorid)
 {
-    auto const& glyph_info = g::glyph_info[s_cast<int>(ch)];
+    auto const& glyph_info = g::glyph_info[static_cast<int>(ch)];
 
     XftDrawString32 (win->draw, win->scm[colorid], win->font,
                     basex, basey,
-                    r_cast<FcChar32 const*>(&ch), 1);
+                    reinterpret_cast<FcChar32 const*>(&ch), 1);
 
     *advance = basex + glyph_info.xOff;
 }
@@ -379,8 +379,8 @@ draw_textline_aux(xwindow& win, bool is_current,
     }
 
     auto col = 1; // Default foreground.
-    win.draw_text(basex + adv, s_cast<i32>(basey), col++, refs[0], &adv);
-    win.draw_text(basex + adv, s_cast<i32>(basey), col, refs[1], &adv);
+    win.draw_text(basex + adv, static_cast<i32>(basey), col++, refs[0], &adv);
+    win.draw_text(basex + adv, static_cast<i32>(basey), col, refs[1], &adv);
 
     // The caret must be drawn after the text.
     if (is_current)
@@ -391,8 +391,8 @@ draw_textline_aux(xwindow& win, bool is_current,
         {
             XGlyphInfo extents;
             XftTextExtents32(win.dpy, win.font,
-                             r_cast<FcChar32 const*>(refs[0].first),
-                             s_cast<int>(g::buf_pt.curr_idx),
+                             reinterpret_cast<FcChar32 const*>(refs[0].first),
+                             static_cast<int>(g::buf_pt.curr_idx),
                              &extents);
             caret_adv = extents.xOff;
         }
@@ -401,14 +401,14 @@ draw_textline_aux(xwindow& win, bool is_current,
             ASSERT(g::buf_pt.curr_idx <= refs[0].size() + refs[1].size());
             XGlyphInfo extents;
             XftTextExtents32(win.dpy, win.font,
-                             r_cast<FcChar32 const*>(refs[0].first),
-                             s_cast<int>(refs[0].size()),
+                             reinterpret_cast<FcChar32 const*>(refs[0].first),
+                             static_cast<int>(refs[0].size()),
                              &extents);
             caret_adv += extents.xOff;
 
             XftTextExtents32(win.dpy, win.font,
-                             r_cast<FcChar32 const*>(refs[1].first),
-                             s_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
+                             reinterpret_cast<FcChar32 const*>(refs[1].first),
+                             static_cast<int>(g::buf_pt.curr_idx - refs[0].size()),
                              &extents);
             caret_adv += extents.xOff;
         }
@@ -434,7 +434,7 @@ main()
         g::file_buffer
             ->get_line(i)
             ->insert_at_point(random_number,
-                              s_cast<u32>('a' + std::random_device()() % 10));
+                              static_cast<u32>('a' + std::random_device()() % 10));
 
         g::file_buffer
             ->get_line(i)
@@ -480,8 +480,8 @@ main()
             win.draw_rect(16, 16, win.width - 32, win.height - 32, 0);
 
             win.set_clamp_rect(16 -1 , 16 - 1 + 1,
-                               s_cast<i16>(win.width - 32 + 1),
-                               s_cast<i16>(win.height - 32));
+                               static_cast<i16>(win.width - 32 + 1),
+                               static_cast<i16>(win.height - 32));
 
             // TODO: Check if boundries are correct.
             auto no_lines = ((win.height - 32 + 1) / g::font_height) + 1;
@@ -491,7 +491,7 @@ main()
                 g::buf_pt.first_line = g::buf_pt.curr_line;
                 g::buf_pt.starting_from_top = true;
             }
-            else if (s_cast<i64>(g::buf_pt.curr_line - g::buf_pt.first_line) >= no_lines - 1)
+            else if (static_cast<i64>(g::buf_pt.curr_line - g::buf_pt.first_line) >= no_lines - 1)
             {
                 g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
                 g::buf_pt.starting_from_top = false;
@@ -513,7 +513,7 @@ main()
                     strref refs[2];
                     g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
-                                      16, s_cast<i16>(win.width - 32 + 1) - 1,
+                                      16, static_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
                                       refs);
                 }
@@ -534,7 +534,7 @@ main()
                     strref refs[2];
                     g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
-                                      16, s_cast<i16>(win.width - 32 + 1) - 1,
+                                      16, static_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
                                       refs);
                 }
@@ -545,7 +545,7 @@ main()
             auto elapsed = chrono::system_clock::now() - start;
 
             LOG_INFO("elapsed: %d",
-                     s_cast<int>(chrono::dur_cast<chrono::milliseconds>(elapsed).count()));
+                     static_cast<int>(chrono::duration_cast<chrono::milliseconds>(elapsed).count()));
 
             // This will give us about 16ms speed.
             std::this_thread::sleep_for(16ms - elapsed);

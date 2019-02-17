@@ -151,8 +151,8 @@ xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, mm len, int* adv)
     {
         XGlyphInfo extents;
         XftTextExtents32(dpy, font,
-                           r_cast<FcChar32 const*>(ptr),
-                           s_cast<int>(len),
+                           reinterpret_cast<FcChar32 const*>(ptr),
+                           static_cast<int>(len),
                            &extents);
 
         *adv = extents.xOff;
@@ -160,8 +160,8 @@ xwindow::draw_text(int x, int y, int colorid, u32 const* ptr, mm len, int* adv)
 
     XftDrawString32(draw, scm[colorid], font,
                       x, y,
-                      r_cast<FcChar32 const*>(ptr),
-                      s_cast<int>(len));
+                      reinterpret_cast<FcChar32 const*>(ptr),
+                      static_cast<int>(len));
 }
 
 void

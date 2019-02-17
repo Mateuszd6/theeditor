@@ -29,15 +29,15 @@ add_undo_impl(undo_type type, u32 const* data, mm len, u64 line, u64 index)
 {
     u8* new_head = g::undo_head;
 
-    *(r_cast<undo_metadata*>(new_head)) = undo_metadata { type, line, index };
+    *(reinterpret_cast<undo_metadata*>(new_head)) = undo_metadata { type, line, index };
     new_head += sizeof(undo_metadata);
 
-    u32* data_ptr = r_cast<u32*>(new_head);
+    u32* data_ptr = reinterpret_cast<u32*>(new_head);
     for(u32 const* p = data; p != data + len;)
         *data_ptr++ = *p++;
 
     new_head += (sizeof(u32) * (len % 2 == 1 ? len + 1 : len));
-    *(r_cast<mm*>(new_head)) = len;
+    *(reinterpret_cast<mm*>(new_head)) = len;
     new_head += sizeof(len);
 
     g::undo_head = new_head;
@@ -118,10 +118,10 @@ undo()
 
     u8* head = g::redo_head;
 
-    mm len = *(r_cast<mm*>(head - sizeof(mm)));
+    mm len = *(reinterpret_cast<mm*>(head - sizeof(mm)));
     head -= (len % 2 == 1 ? len + 1 : len) * sizeof(u32) + sizeof(mm) + sizeof(undo_metadata);
-    u32* data_head = r_cast<u32*>(head + sizeof(undo_metadata));
-    undo_metadata* mdata = r_cast<undo_metadata*>(head);
+    u32* data_head = reinterpret_cast<u32*>(head + sizeof(undo_metadata));
+    undo_metadata* mdata = reinterpret_cast<undo_metadata*>(head);
 
     u8 buffer[1024];
     auto[_, dest_reached] = utf32_to_utf8(data_head, data_head + len, buffer, buffer + 1024);
@@ -181,19 +181,19 @@ DEBUG_print_state()
     u8* head = g::undo_head;
     while(head != &g::undo_buffer[0])
     {
-        mm len = *(r_cast<mm*>(head - sizeof(mm)));
+        mm len = *(reinterpret_cast<mm*>(head - sizeof(mm)));
         head -= (len % 2 == 1 ? len + 1 : len) * sizeof(u32) + sizeof(mm) + sizeof(undo_metadata);
 
         u8 buffer[1024];
-        u32* data_head = r_cast<u32*>(head + sizeof(undo_metadata));
+        u32* data_head = reinterpret_cast<u32*>(head + sizeof(undo_metadata));
         auto[_, dest_reached] = utf32_to_utf8(data_head, data_head + len,
                                               buffer, buffer + 1024);
         *dest_reached = '\0';
 
         printf("BUFFER: op %d, at:%lu:%lu characters[%lu]: '%s'\n",
-               r_cast<undo_metadata*>(head)->oper,
-               r_cast<undo_metadata*>(head)->line,
-               r_cast<undo_metadata*>(head)->index,
+               reinterpret_cast<undo_metadata*>(head)->oper,
+               reinterpret_cast<undo_metadata*>(head)->line,
+               reinterpret_cast<undo_metadata*>(head)->index,
                len,
                buffer);
     }

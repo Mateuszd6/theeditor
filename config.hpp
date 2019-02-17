@@ -30,12 +30,6 @@ inline u32 operator"" _u32(unsigned long long liter) { return static_cast<u32>(l
 inline i64 operator"" _i64(unsigned long long liter) { return static_cast<i64>(liter); }
 inline u64 operator"" _u64(unsigned long long liter) { return static_cast<u64>(liter); }
 
-#define s_cast static_cast
-#define r_cast reinterpret_cast
-#define c_cast const_cast
-#define dyn_cast dynamic_cast
-#define dur_cast duration_cast
-
 // Figure out the compiler.
 #if (defined(__GNUC__) && !defined(__clang__))
 #  define COMPILER_GCC 1
@@ -59,12 +53,12 @@ namespace intr
 #if defined COMPILER_GCC || defined COMPILER_CLANG
     static inline bool likely(bool expr_result)
     {
-        return __builtin_expect(s_cast<bool>(expr_result), true);
+        return __builtin_expect(static_cast<bool>(expr_result), true);
     }
 
     static inline bool unlikely(bool expr_result)
     {
-        return __builtin_expect(s_cast<bool>(expr_result), false);
+        return __builtin_expect(static_cast<bool>(expr_result), false);
     }
 
     static inline long expect(long value, long expected_value)
@@ -129,8 +123,8 @@ namespace intr
     static inline int clz64(u64 val) { static_assert("clz64 - not implemented"); }
     static inline int ctz32(u32 val) { static_assert("ctz32 - not implemented"); }
     static inline int ctz64(u64 val) { static_assert("ctz64 - not implemented"); }
-    inline inline int popcnt32(u32 val) { return s_cast<int>(__popcnt(val)); }
-    inline inline int popcnt64(u64 val) { return s_cast<int>(__popcnt64(val)); }
+    inline inline int popcnt32(u32 val) { return static_cast<int>(__popcnt(val)); }
+    inline inline int popcnt64(u64 val) { return static_cast<int>(__popcnt64(val)); }
 #else // Looks like msvc does not support it.
 #  error "Intrinsics probably won't work for You, as the compiler is unknown."
 #endif
@@ -181,8 +175,8 @@ using namespace std::chrono_literals;
 #define DO_ONCE()                                                       \
     DO_ONCE_IMPL(ANON_NAME())
 
-// Relational operators as a macro. What waiting for operator <=> this is pretty
-// cool alternative.
+// Relational operators as a macro. While waiting for operator <=> this is
+// pretty cool alternative.
 #define REL_OPS(TYPE_)                                                  \
     inline bool operator!=(TYPE_ const& x, TYPE_ const& y)              \
     { return !(x == y); }                                               \
