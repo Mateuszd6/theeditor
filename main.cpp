@@ -11,31 +11,33 @@
 
 namespace g
 {
-    // Global font props.
-    static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
-    static char const* colornames[] = {
-        "#272822", // monokai-background
-        "#F8F8F2", // monokai-foreground
-        "#F92672", // monokai-red
-        "#66D9EF", // monokai-blue
-        "#A6E22E", // monokai-green
-        "#FD971F", // monokai-orange
-        "#E6DB74", // monokai-yellow
-        "#AE81FF", // monokai-violet
-        "#75715E", // monokai-comments
-        "#8F908A", // monokai-line-number
-        "#3A392F", // monokai-current-line (alt: 1E1F1C)
-        "#057405", // NOTE - green
-        "#F61010", // TOD0 - red (spelled this way to avoid grep todo)
-    };
-    static i32 font_ascent;
-    static i32 font_descent;
-    static i32 font_height;
 
-    // Global buffer props.
-    static buffer* file_buffer;
-    static buffer_point buf_pt;
-    static bool buffer_is_dirty = true;
+// Global font props.
+static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
+static char const* colornames[] = {
+    "#272822", // monokai-background
+    "#F8F8F2", // monokai-foreground
+    "#F92672", // monokai-red
+    "#66D9EF", // monokai-blue
+    "#A6E22E", // monokai-green
+    "#FD971F", // monokai-orange
+    "#E6DB74", // monokai-yellow
+    "#AE81FF", // monokai-violet
+    "#75715E", // monokai-comments
+    "#8F908A", // monokai-line-number
+    "#3A392F", // monokai-current-line (alt: 1E1F1C)
+    "#057405", // N0TE - green
+    "#F61010", // T0DO - red
+};
+static i32 font_ascent;
+static i32 font_descent;
+static i32 font_height;
+
+// Global buffer props.
+static buffer* file_buffer;
+static buffer_point buf_pt;
+static bool buffer_is_dirty = true;
+
 }
 
 static void handle_key(key const& pressed_key)
@@ -85,7 +87,8 @@ static void handle_key(key const& pressed_key)
                     u32 removed_ch = static_cast<u32>('\n');
 
                     add_undo(undo_type::remove, &removed_ch, 1,
-                             g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
+                             g::buf_pt.curr_line - 1,
+                             g::buf_pt.buffer_ptr->get_line(g::buf_pt.curr_line - 1)->size());
                     bool char_removed = g::buf_pt.remove_character_backward();
                     ASSERT(char_removed);
                 }
@@ -522,8 +525,7 @@ main()
                 {
                     auto line_to_draw = k + g::buf_pt.first_line;
 
-                    // We can be starting from bot and not have a full buffer (check
-                    // how sublime does it)
+                    // We can be starting from bot and not have a full buffer.
                     if(line_to_draw >= g::file_buffer->size())
                         continue;
 

@@ -9,7 +9,6 @@ namespace g
         { key{ u32('x'), 0, ctrl }, "Kill" },
         { key{ 0, keycode_values::Tab, ctrl }, "Reindent" },
         { key{ u32(' '), 0, ctrl }, "Set Mark" },
-
     };
 }
 

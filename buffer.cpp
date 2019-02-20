@@ -3,8 +3,8 @@
 // TODO(Cleanup): Try to use as less globals as possible...
 namespace g
 {
-    static int number_of_buffers = 0;
-    static buffer buffers[256];
+static int number_of_buffers = 0;
+static buffer buffers[256];
 }
 
 // Line 0 is valid.
@@ -369,8 +369,8 @@ bool buffer_point::line_down()
 bool buffer_point::jump_up(u64 number_of_lines)
 {
     auto goal_idx = (last_line_idx == -1
-                     ? curr_idx
-                     : (curr_idx > static_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
+        ? curr_idx
+        : (curr_idx > static_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
 
     if(curr_line == 0)
         return false;
@@ -398,16 +398,16 @@ bool buffer_point::jump_down(u64 number_of_lines)
 {
     auto last_line_index = buffer_ptr->size() - 1;
     auto goal_idx = (last_line_idx == -1
-                     ? curr_idx
-                     : (curr_idx > static_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
+        ? curr_idx
+        : (curr_idx > static_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
 
     if(curr_line == last_line_index)
         return false;
     else
     {
         curr_line = (curr_line + number_of_lines > last_line_index
-                     ? last_line_index
-                     : curr_line + number_of_lines);
+            ? last_line_index
+            : curr_line + number_of_lines);
         first_line = curr_line;
         starting_from_top = true;
 
@@ -498,8 +498,8 @@ read_full_file(char const* filename)
 // Returns the pair (line + idx) at which the inserting has ended.
 static inline std::pair<mm, mm>
 write_to_buffer(buffer* buffer,
-                mm line, mm idx,
-                u32 const* begin, u32 const* end)
+    mm line, mm idx,
+    u32 const* begin, u32 const* end)
 {
     // TODO: Possible different newline lineendings.
     u32 const* curr = begin;
@@ -549,15 +549,15 @@ load_file_into_buffer_utf8(buffer* buffer, char const* file_path)
         while(src_curr != data_ptr + size)
         {
             auto[src_reached, dest_reached] = utf8_to_utf32(src_curr,
-                                                            data_ptr + size,
-                                                            output_chunk,
-                                                            output_chunk + chunk_size);
+                data_ptr + size,
+                output_chunk,
+                output_chunk + chunk_size);
             src_curr = src_reached;
 
             // This will split the lines, by searching for newline characters.
             auto[res_line, res_idx] =
                 write_to_buffer(buffer, insert_at_line, insert_at_idx,
-                                &(output_chunk[0]), dest_reached);
+                    &(output_chunk[0]), dest_reached);
             insert_at_line = res_line;
             insert_at_idx = res_idx;
         }
