@@ -40,7 +40,8 @@ static bool buffer_is_dirty = true;
 
 }
 
-static void handle_key(key const& pressed_key)
+static void
+handle_key(key const& pressed_key)
 {
     std::string const* shortcut_name;
     if((shortcut_name = is_shortcut(pressed_key)) != nullptr)
@@ -53,7 +54,9 @@ static void handle_key(key const& pressed_key)
             undo();
         }
         else
+        {
             break_undo_chain();
+        }
     }
     else if(pressed_key.codept == 0)
     {
@@ -444,7 +447,7 @@ main()
             ->delete_char_forward(random_number);
     }
 
-    save_buffer_utf8(g::file_buffer, "./saved_test");
+    save_buffer(g::file_buffer, "./saved_test", encoding::utf8);
     system("diff -s ./test ./saved_test");
     return 0;
 #endif

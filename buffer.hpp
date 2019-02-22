@@ -1,7 +1,8 @@
-#ifndef EDITOR_BUFFER_HPP
-#define EDITOR_BUFFER_HPP
+#ifndef BUFFER_HPP
+#define BUFFER_HPP
 
 #include "gap_buffer.hpp"
+#include "utf.hpp"
 
 #define NUMBER_OF_LINES_IN_BUFFER (256)
 
@@ -33,7 +34,7 @@ struct buffer
 static buffer* create_buffer_from_file(char const* file_path);
 
 // TODO: Error code on fail.
-static void save_buffer_utf8(buffer* buf, char const* file_path);
+static void save_buffer(buffer* buf, char const* file_path, encoding enc);
 
 struct buffer_point
 {
@@ -74,4 +75,4 @@ struct buffer_point
 static buffer_point create_buffer_point(buffer* buffer_ptr);
 
 
-#endif // EDITOR_BUFFER_HPP
+#endif // BUFFER_HPP

@@ -1,6 +1,15 @@
 #ifndef UTF_HPP
 #define UTF_HPP
 
+enum struct encoding
+{
+    utf8,
+    utf16_LE,
+    utf32_LE,
+
+    // TODO: Big endianees
+};
+
 // TODO: Describe endianees
 // Converts until one buffer ends. Returns the pair of iterators at which the
 // conversion has ended.

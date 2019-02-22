@@ -641,7 +641,8 @@ create_buffer_from_file(char const* file_path)
     return result;
 }
 
-static inline void
+// TODO: Benchmark this.
+static void
 save_buffer_utf8(buffer* buf, char const* file_path)
 {
     constexpr i32 chunk_size = 1024;
@@ -694,6 +695,15 @@ save_buffer_utf8(buffer* buf, char const* file_path)
 
     write_utf32_as_utf8_to_file(input_chunk, input_idx);
     fclose(file);
+}
+
+static void
+save_buffer(buffer* buf, char const* file_path, encoding enc)
+{
+    if (enc == encoding::utf8)
+        save_buffer_utf8(buf, file_path);
+    else
+        PANIC("Saving the buffer in this encoding is not supported.");
 }
 
 static buffer_point create_buffer_point(buffer* buffer_ptr)
