@@ -19,7 +19,8 @@ namespace g
     static u8* redo_head = &(undo_buffer[0]);
 }
 
-static void break_undo_chain()
+static void
+break_undo_chain()
 {
     g::redo_head = g::undo_head;
 }
@@ -123,6 +124,7 @@ undo()
     u32* data_head = reinterpret_cast<u32*>(head + sizeof(undo_metadata));
     undo_metadata* mdata = reinterpret_cast<undo_metadata*>(head);
 
+    // TODO: What happend if we index out of buffer?
     u8 buffer[1024];
     auto[_, dest_reached] = utf32_to_utf8(data_head, data_head + len, buffer, buffer + 1024);
     *dest_reached = '\0';

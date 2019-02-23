@@ -38,6 +38,100 @@ static buffer* file_buffer;
 static buffer_point buf_pt;
 static bool buffer_is_dirty = true;
 
+// Clipboard
+static Atom targets_atom;
+static Atom text_atom;
+static Atom UTF8;
+static Atom XA_ATOM = 4;
+static Atom XA_STRING = 31;
+static Atom selection;
+
+static u8* clip_text;
+static int clip_size;
+
+static xwindow* tmp_window_hndl;
+
+} // namespace g
+
+static char*
+XPasteType(xwindow* win, Atom atom)
+{
+    XEvent event;
+    int format;
+    unsigned long N, size;
+    char *data;
+    char *s = nullptr;
+    Atom target,
+         CLIPBOARD = XInternAtom(win->dpy, "CLIPBOARD", 0),
+         XSEL_DATA = XInternAtom(win->dpy, "XSEL_DATA", 0);
+
+    XConvertSelection(win->dpy, CLIPBOARD, atom, XSEL_DATA, win->win, CurrentTime);
+    XSync(win->dpy, 0);
+    XNextEvent(win->dpy, &event);
+
+    switch (event.type)
+    {
+        case SelectionNotify:
+            if (event.xselection.selection != CLIPBOARD)
+                break;
+
+            if (event.xselection.property)
+            {
+                XGetWindowProperty(event.xselection.display,
+                                   event.xselection.requestor,
+                                   event.xselection.property,
+                                   0L, (~0L), 0,
+                                   AnyPropertyType,
+                                   &target,
+                                   &format,
+                                   &size,
+                                   &N,
+                                   (unsigned char**)&data);
+
+                if (target == g::UTF8 || target == g::XA_STRING)
+                {
+                    s = strndup(data, size);
+                    XFree(data);
+                }
+
+                XDeleteProperty(event.xselection.display,
+                                event.xselection.requestor,
+                                event.xselection.property);
+            }
+    }
+    return s;
+}
+
+static void
+XCopy(xwindow* win, unsigned char* text, int size)
+{
+    g::targets_atom = XInternAtom(win->dpy, "TARGETS", 0);
+    g::text_atom = XInternAtom(win->dpy, "TEXT", 0);
+    g::UTF8 = XInternAtom(win->dpy, "UTF8_STRING", 1);
+    if (g::UTF8 == None)
+        g::UTF8 = g::XA_STRING;
+
+    Atom selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
+
+    g::clip_text = static_cast<unsigned char*>(malloc(size));
+    g::clip_size = size;
+    memcpy(g::clip_text, text, size);
+
+    XSetSelectionOwner(win->dpy, selection, win->win, 0);
+    if (XGetSelectionOwner(win->dpy, selection) != win->win)
+        return;
+}
+
+static char*
+XPaste(xwindow* win)
+{
+    char* c = nullptr;
+    g::UTF8 = XInternAtom(win->dpy, "UTF8_STRING", True);
+    if (g::UTF8 != None)
+        c = XPasteType(win, g::UTF8);
+    if (!c)
+        c = XPasteType(win, g::XA_STRING);
+    return c;
 }
 
 static void
@@ -52,11 +146,20 @@ handle_key(key pressed_key)
         if (*shortcut_name == "Undo")
         {
             undo();
+            return;
         }
         else
-        {
             break_undo_chain();
+
+        if(*shortcut_name == "Copy")
+        {
+            char text[] = "Mateusz";
+            XCopy(g::tmp_window_hndl,
+                  reinterpret_cast<u8*>(text),
+                  static_cast<u32>(array_cnt("Mateusz") - 1));
         }
+        else
+            LOG_WARN("Not supported shortcut: %s", shortcut_name->c_str());
     }
     else if (pressed_key.codept == 0)
     {
@@ -219,6 +322,8 @@ handle_event(xwindow* win)
     XEvent ev;
     XNextEvent(win->dpy, &ev);
 
+    g::selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
+
     switch(ev.type)
     {
         case ConfigureNotify:
@@ -321,6 +426,73 @@ handle_event(xwindow* win)
                 handle_key(pressed_key);
             }
         } break;
+
+        // Clipboard stuff:
+        case SelectionRequest:
+        {
+            LOG_INFO("__ SelectionRequest __");
+
+            if (ev.xselectionrequest.selection != g::selection)
+                break;
+
+            XSelectionRequestEvent* xsr = &ev.xselectionrequest;
+            XSelectionEvent select_ev{ };
+            int R = 0;
+
+            select_ev.type = SelectionNotify;
+            select_ev.display = xsr->display;
+            select_ev.requestor = xsr->requestor;
+            select_ev.selection = xsr->selection;
+            select_ev.time = xsr->time;
+            select_ev.target = xsr->target;
+            select_ev.property = xsr->property;
+
+            if (select_ev.target == g::targets_atom)
+            {
+                R = XChangeProperty(select_ev.display,
+                                    select_ev.requestor,
+                                    select_ev.property,
+                                    g::XA_ATOM,
+                                    32,
+                                    PropModeReplace,
+                                    reinterpret_cast<unsigned char*>(&g::UTF8),
+                                    1);
+            }
+            else if (select_ev.target == g::XA_STRING || select_ev.target == g::text_atom)
+            {
+                R = XChangeProperty(select_ev.display,
+                                    select_ev.requestor,
+                                    select_ev.property,
+                                    g::XA_STRING,
+                                    8,
+                                    PropModeReplace,
+                                    g::clip_text,
+                                    g::clip_size);
+            }
+            else if (select_ev.target == g::UTF8)
+            {
+                R = XChangeProperty(select_ev.display,
+                                    select_ev.requestor,
+                                    select_ev.property,
+                                    g::UTF8,
+                                    8,
+                                    PropModeReplace,
+                                    g::clip_text,
+                                    g::clip_size);
+            }
+            else
+            {
+                select_ev.property = None;
+            }
+
+            if ((R & 2) == 0)
+                XSendEvent(win->dpy, select_ev.requestor, 0, 0, (XEvent*)&select_ev);
+        } break;
+
+        case SelectionClear:
+        {
+            LOG_INFO("__ SelectionClear __");
+        } return;
 
         default:
         {
@@ -431,7 +603,7 @@ draw_textline_aux(xwindow& win, bool is_current,
 int
 main()
 {
-#if 1 // Filesystem basic api tests.
+#if 0 // Filesystem basic api tests.
     {
         fs::path p{  };
         LOG_INFO("CWD: %s", p.get_name());
@@ -509,6 +681,7 @@ main()
     g::buf_pt = create_buffer_point(g::file_buffer);
 
     xwindow win{ 400, 500 };
+    g::tmp_window_hndl = &win;
     win.load_scheme(g::colornames, array_cnt(g::colornames));
     if (!win.load_font(g::fontname))
         PANIC("Cannot load font %s", g::fontname);
