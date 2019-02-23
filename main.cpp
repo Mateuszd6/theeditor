@@ -41,10 +41,10 @@ static bool buffer_is_dirty = true;
 }
 
 static void
-handle_key(key const& pressed_key)
+handle_key(key pressed_key)
 {
     std::string const* shortcut_name;
-    if((shortcut_name = is_shortcut(pressed_key)) != nullptr)
+    if ((shortcut_name = is_shortcut(pressed_key)) != nullptr)
     {
         LOG_WARN("Shortcut: %s", shortcut_name->c_str());
 
@@ -58,7 +58,7 @@ handle_key(key const& pressed_key)
             break_undo_chain();
         }
     }
-    else if(pressed_key.codept == 0)
+    else if (pressed_key.codept == 0)
     {
         break_undo_chain();
 
@@ -426,9 +426,62 @@ draw_textline_aux(xwindow& win, bool is_current,
     }
 }
 
+#include "fs.hpp"
+
 int
 main()
 {
+#if 1 // Filesystem basic api tests.
+    {
+        fs::path p{  };
+        LOG_INFO("CWD: %s", p.get_name());
+
+        {
+            auto dirs = p.get_contents();
+            for (auto&& i : dirs)
+                LOG_WARN("\t%s", reinterpret_cast<char const*>(i.name));
+        }
+
+        char next_dir[] = ".git";
+        ASSERT(p.push_dir(reinterpret_cast<u8*>(next_dir)));
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.push_dir(reinterpret_cast<u8*>(next_dir)));
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        ASSERT(!p.pop_dir());
+        LOG_INFO("NOW: %s", p.get_name());
+
+        char next_dir2[] = "usr/";
+        ASSERT(p.push_dir(reinterpret_cast<u8*>(next_dir2)));
+        LOG_INFO("NOW: %s", p.get_name());
+
+        char next_dir3[] = "share";
+        ASSERT(p.push_dir(reinterpret_cast<u8*>(next_dir3)));
+        LOG_INFO("NOW: %s", p.get_name());
+
+        return 0;
+    }
+#endif
+
     LOG_INFO("Using font: %s", g::fontname);
     g::file_buffer = create_buffer_from_file("./test");
 
@@ -565,6 +618,7 @@ main()
 #endif
 }
 
+#include "fs.cpp"
 #include "buffer.cpp"
 #include "gap_buffer.cpp"
 #include "xwindow.cpp"
