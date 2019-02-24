@@ -66,6 +66,17 @@ handle_key(key pressed_key)
                 reinterpret_cast<u8*>(text),
                 static_cast<u32>(array_cnt("Mateusz") - 1));
         }
+        else if(*shortcut_name == "Quit")
+        {
+            // This is some save exitting code, to make sure we don't leak much.
+            LOG_INFO("Exitting...");
+
+            g::tmp_window_hndl->free_scheme();
+            g::tmp_window_hndl->free_font();
+            g::tmp_window_hndl->~xwindow();
+
+            exit(0);
+        }
         else if(*shortcut_name == "Paste")
         {
             u32 buffer[1024];
@@ -264,8 +275,6 @@ handle_event(xwindow* win)
 {
     XEvent ev;
     XNextEvent(win->dpy, &ev);
-
-    win->selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
 
     switch(ev.type)
     {

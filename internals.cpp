@@ -7,6 +7,7 @@ namespace g
         { key{ u32('c'), 0, ctrl }, "Copy" },
         { key{ u32('v'), 0, ctrl }, "Paste" },
         { key{ u32('x'), 0, ctrl }, "Kill" },
+        { key{ 0, Escape, ctrl }, "Quit" },
         { key{ 0, keycode_values::Tab, ctrl }, "Reindent" },
         { key{ u32(' '), 0, ctrl }, "Set Mark" },
     };

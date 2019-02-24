@@ -23,6 +23,9 @@ struct xcolorscm
     }
 };
 
+static constexpr Atom XA_ATOM = 4;
+static constexpr Atom XA_STRING = 31;
+
 struct xwindow
 {
     Display* dpy;
@@ -49,13 +52,10 @@ struct xwindow
     i32 clip_size = 0;
 
     // Clippboard atoms. TODO: Find a way not to store them here.
-    Atom targets_atom;
-    Atom text_atom;
     Atom UTF8;
-    Atom XA_ATOM = 4;
-    Atom XA_STRING = 31;
-    Atom selection;
-
+    Atom text_atom;
+    Atom targets_atom;
+    Atom __selection;
 
     xwindow(int width_, int heigth_);
     ~xwindow();

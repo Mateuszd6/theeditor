@@ -46,6 +46,13 @@ xwindow::xwindow(int width_, int heigth_)
     // loads the XMODIFIERS environment variable to see what IME to use
     XSetLocaleModifiers("");
 
+    targets_atom = XInternAtom(dpy, "TARGETS", 0);
+    text_atom = XInternAtom(dpy, "TEXT", 0);
+    UTF8 = XInternAtom(dpy, "UTF8_STRING", 1);
+    if (UTF8 == None)
+        UTF8 = XA_STRING;
+    ASSERT(UTF8 != None);
+
     input_xim = XOpenIM(dpy, nullptr, nullptr, nullptr);
     if(!input_xim)
     {
@@ -278,14 +285,19 @@ xwindow::load_clipboard_contents_aux(Atom atom)
     }
 
 done:
+    // TODO: Store the original version, but return the version converted into utf32.
+
     return { s, size };
 }
 
 void
 xwindow::handle_selection_request(XSelectionRequestEvent* xsr)
 {
+#if 0 // TODO: Investigate this!
+    auto selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
     if (xsr->selection != selection)
         return;
+#endif
 
     XSelectionEvent select_ev{ };
     int R = 0;
@@ -350,38 +362,25 @@ xwindow::set_clipboard_contents(unsigned char* text, int size)
         clip_size = 0;
     }
 
-    targets_atom = XInternAtom(dpy, "TARGETS", 0);
-    text_atom = XInternAtom(dpy, "TEXT", 0);
-    UTF8 = XInternAtom(dpy, "UTF8_STRING", 1);
-    if (UTF8 == None)
-        UTF8 = XA_STRING;
-
-    Atom selection_ = XInternAtom(dpy, "CLIPBOARD", 0);
+    // TODO: Investigate if this is worth/needed to store in the class.
+    Atom selection = XInternAtom(dpy, "CLIPBOARD", 0);
 
     clip_text = static_cast<u8*>(malloc(size));
     clip_size = size;
     memcpy(clip_text, text, size);
 
-    XSetSelectionOwner(dpy, selection_, win, 0);
-    if (XGetSelectionOwner(dpy, selection_) != win)
+    XSetSelectionOwner(dpy, selection, win, 0);
+    if (XGetSelectionOwner(dpy, selection) != win)
         return;
 }
 
 void
 xwindow::load_clipboard_contents()
 {
-    UTF8 = XInternAtom(dpy, "UTF8_STRING", True);
-    if (UTF8 != None)
-    {
-        auto[ptr, size] = load_clipboard_contents_aux(UTF8);
-        clip_text = reinterpret_cast<u8*>(ptr);
-        clip_size = size;
-    }
+    auto[ptr, size] = load_clipboard_contents_aux(UTF8);
 
-    if (!clip_text)
-    {
-        auto[ptr, size] = load_clipboard_contents_aux(XA_STRING);
-        clip_text = reinterpret_cast<u8*>(ptr);
-        clip_size = size;
-    }
+    if(clip_text)
+        free(clip_text);
+    clip_text = reinterpret_cast<u8*>(ptr);
+    clip_size = size;
 }
