@@ -208,3 +208,180 @@ xwindow::free_font()
 {
     XftFontClose(dpy, font);
 }
+
+std::pair<char*, i32>
+xwindow::load_clipboard_contents_aux(Atom atom)
+{
+    XEvent event;
+    int format;
+    unsigned long N, size;
+    char *data;
+    char *s = nullptr;
+    Atom target,
+         CLIPBOARD = XInternAtom(dpy, "CLIPBOARD", 0),
+         XSEL_DATA = XInternAtom(dpy, "XSEL_DATA", 0);
+
+    XConvertSelection(dpy, CLIPBOARD, atom, XSEL_DATA, win, CurrentTime);
+    XSync(dpy, 0);
+
+    while(1)
+    {
+        XNextEvent(dpy, &event);
+        switch (event.type)
+        {
+            case SelectionNotify:
+            {
+                if (event.xselection.selection != CLIPBOARD)
+                    break;
+
+                if (event.xselection.property)
+                {
+                    XGetWindowProperty(event.xselection.display,
+                                       event.xselection.requestor,
+                                       event.xselection.property,
+                                       0L, (~0L), 0,
+                                       AnyPropertyType,
+                                       &target,
+                                       &format,
+                                       &size,
+                                       &N,
+                                       reinterpret_cast<unsigned char**>(&data));
+
+                    if (target == UTF8 || target == XA_STRING)
+                    {
+                        s = strndup(data, size);
+                        XFree(data);
+                    }
+
+                    XDeleteProperty(event.xselection.display,
+                                    event.xselection.requestor,
+                                    event.xselection.property);
+                }
+            } goto done;
+
+            case SelectionRequest:
+            {
+                LOG_WARN("I probobly own the selection so I'll send the request to myself!");
+
+                // TODO: Investigate it there is any reason to send the even to
+                //       myself.
+                handle_selection_request(&event.xselectionrequest);
+            } break;
+
+            // TODO: We should probobly skip every other even, not just die when
+            //       it happens.
+            default:
+            {
+                PANIC("This event was not expected here!");
+            } break;
+        }
+    }
+
+done:
+    return { s, size };
+}
+
+void
+xwindow::handle_selection_request(XSelectionRequestEvent* xsr)
+{
+    if (xsr->selection != selection)
+        return;
+
+    XSelectionEvent select_ev{ };
+    int R = 0;
+
+    select_ev.type = SelectionNotify;
+    select_ev.display = xsr->display;
+    select_ev.requestor = xsr->requestor;
+    select_ev.selection = xsr->selection;
+    select_ev.time = xsr->time;
+    select_ev.target = xsr->target;
+    select_ev.property = xsr->property;
+
+    if (select_ev.target == targets_atom)
+    {
+        R = XChangeProperty(select_ev.display,
+                            select_ev.requestor,
+                            select_ev.property,
+                            XA_ATOM,
+                            32,
+                            PropModeReplace,
+                            reinterpret_cast<unsigned char*>(&UTF8),
+                            1);
+    }
+    else if (select_ev.target == XA_STRING || select_ev.target == text_atom)
+    {
+        R = XChangeProperty(select_ev.display,
+                            select_ev.requestor,
+                            select_ev.property,
+                            XA_STRING,
+                            8,
+                            PropModeReplace,
+                            clip_text,
+                            clip_size);
+    }
+    else if (select_ev.target == UTF8)
+    {
+        R = XChangeProperty(select_ev.display,
+                            select_ev.requestor,
+                            select_ev.property,
+                            UTF8,
+                            8,
+                            PropModeReplace,
+                            clip_text,
+                            clip_size);
+    }
+    else
+    {
+        select_ev.property = None;
+    }
+
+    if ((R & 2) == 0)
+        XSendEvent(dpy, select_ev.requestor, 0, 0, reinterpret_cast<XEvent*>(&select_ev));
+}
+
+void
+xwindow::set_clipboard_contents(unsigned char* text, int size)
+{
+    if(clip_text)
+    {
+        free(clip_text);
+        clip_text = nullptr;
+        clip_size = 0;
+    }
+
+    targets_atom = XInternAtom(dpy, "TARGETS", 0);
+    text_atom = XInternAtom(dpy, "TEXT", 0);
+    UTF8 = XInternAtom(dpy, "UTF8_STRING", 1);
+    if (UTF8 == None)
+        UTF8 = XA_STRING;
+
+    Atom selection_ = XInternAtom(dpy, "CLIPBOARD", 0);
+
+    clip_text = static_cast<u8*>(malloc(size));
+    clip_size = size;
+    memcpy(clip_text, text, size);
+
+    XSetSelectionOwner(dpy, selection_, win, 0);
+    if (XGetSelectionOwner(dpy, selection_) != win)
+        return;
+}
+
+void
+xwindow::load_clipboard_contents()
+{
+    UTF8 = XInternAtom(dpy, "UTF8_STRING", True);
+    if (UTF8 != None)
+    {
+        auto[ptr, size] = load_clipboard_contents_aux(UTF8);
+        clip_text = reinterpret_cast<u8*>(ptr);
+        clip_size = size;
+    }
+
+    if (!clip_text)
+    {
+        auto[ptr, size] = load_clipboard_contents_aux(XA_STRING);
+        clip_text = reinterpret_cast<u8*>(ptr);
+        clip_size = size;
+    }
+}

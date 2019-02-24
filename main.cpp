@@ -38,195 +38,9 @@ static buffer* file_buffer;
 static buffer_point buf_pt;
 static bool buffer_is_dirty = true;
 
-// Clipboard
-static Atom targets_atom;
-static Atom text_atom;
-static Atom UTF8;
-static Atom XA_ATOM = 4;
-static Atom XA_STRING = 31;
-static Atom selection;
-
-static u8* clip_text;
-static i32 clip_size;
-
 static xwindow* tmp_window_hndl;
 
 } // namespace g
-
-static void
-handle_selection_request(xwindow* win, XSelectionRequestEvent* xsr)
-{
-    if (xsr->selection != g::selection)
-        return;
-
-    XSelectionEvent select_ev{ };
-    int R = 0;
-
-    select_ev.type = SelectionNotify;
-    select_ev.display = xsr->display;
-    select_ev.requestor = xsr->requestor;
-    select_ev.selection = xsr->selection;
-    select_ev.time = xsr->time;
-    select_ev.target = xsr->target;
-    select_ev.property = xsr->property;
-
-    if (select_ev.target == g::targets_atom)
-    {
-        R = XChangeProperty(select_ev.display,
-                            select_ev.requestor,
-                            select_ev.property,
-                            g::XA_ATOM,
-                            32,
-                            PropModeReplace,
-                            reinterpret_cast<unsigned char*>(&g::UTF8),
-                            1);
-    }
-    else if (select_ev.target == g::XA_STRING || select_ev.target == g::text_atom)
-    {
-        R = XChangeProperty(select_ev.display,
-                            select_ev.requestor,
-                            select_ev.property,
-                            g::XA_STRING,
-                            8,
-                            PropModeReplace,
-                            g::clip_text,
-                            g::clip_size);
-    }
-    else if (select_ev.target == g::UTF8)
-    {
-        R = XChangeProperty(select_ev.display,
-                            select_ev.requestor,
-                            select_ev.property,
-                            g::UTF8,
-                            8,
-                            PropModeReplace,
-                            g::clip_text,
-                            g::clip_size);
-    }
-    else
-    {
-        select_ev.property = None;
-    }
-
-    if ((R & 2) == 0)
-        XSendEvent(win->dpy, select_ev.requestor, 0, 0, reinterpret_cast<XEvent*>(&select_ev));
-}
-
-static std::pair<char*, i32>
-XPasteType(xwindow* win, Atom atom)
-{
-    XEvent event;
-    int format;
-    unsigned long N, size;
-    char *data;
-    char *s = nullptr;
-    Atom target,
-         CLIPBOARD = XInternAtom(win->dpy, "CLIPBOARD", 0),
-         XSEL_DATA = XInternAtom(win->dpy, "XSEL_DATA", 0);
-
-    XConvertSelection(win->dpy, CLIPBOARD, atom, XSEL_DATA, win->win, CurrentTime);
-    XSync(win->dpy, 0);
-
-    while(1)
-    {
-        XNextEvent(win->dpy, &event);
-        switch (event.type)
-        {
-            case SelectionNotify:
-            {
-                if (event.xselection.selection != CLIPBOARD)
-                    break;
-
-                if (event.xselection.property)
-                {
-                    XGetWindowProperty(event.xselection.display,
-                                       event.xselection.requestor,
-                                       event.xselection.property,
-                                       0L, (~0L), 0,
-                                       AnyPropertyType,
-                                       &target,
-                                       &format,
-                                       &size,
-                                       &N,
-                                       reinterpret_cast<unsigned char**>(&data));
-
-                    if (target == g::UTF8 || target == g::XA_STRING)
-                    {
-                        s = strndup(data, size);
-                        XFree(data);
-                    }
-
-                    XDeleteProperty(event.xselection.display,
-                                    event.xselection.requestor,
-                                    event.xselection.property);
-                }
-            } goto done;
-
-            case SelectionRequest:
-            {
-                LOG_WARN("I probobly own the selection so I'll send the request to myself!");
-
-                // TODO: Investigate it there is any reason to send the even to
-                //       myself.
-                handle_selection_request(win, &event.xselectionrequest);
-            } break;
-
-            default:
-            {
-                PANIC("This event was not expected here!");
-            } break;
-        }
-    }
-
-done:
-    return { s, size };
-}
-
-static void
-XCopy(xwindow* win, unsigned char* text, int size)
-{
-    if(g::clip_text)
-    {
-        free(g::clip_text);
-        g::clip_text = nullptr;
-        g::clip_size = 0;
-    }
-
-    g::targets_atom = XInternAtom(win->dpy, "TARGETS", 0);
-    g::text_atom = XInternAtom(win->dpy, "TEXT", 0);
-    g::UTF8 = XInternAtom(win->dpy, "UTF8_STRING", 1);
-    if (g::UTF8 == None)
-        g::UTF8 = g::XA_STRING;
-
-    Atom selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
-
-    g::clip_text = static_cast<u8*>(malloc(size));
-    g::clip_size = size;
-    memcpy(g::clip_text, text, size);
-
-    XSetSelectionOwner(win->dpy, selection, win->win, 0);
-    if (XGetSelectionOwner(win->dpy, selection) != win->win)
-        return;
-}
-
-static void
-XPaste(xwindow* win)
-{
-    g::UTF8 = XInternAtom(win->dpy, "UTF8_STRING", True);
-    if (g::UTF8 != None)
-    {
-        auto[ptr, size] = XPasteType(win, g::UTF8);
-        g::clip_text = reinterpret_cast<u8*>(ptr);
-        g::clip_size = size;
-    }
-
-    if (!g::clip_text)
-    {
-        auto[ptr, size] = XPasteType(win, g::XA_STRING);
-        g::clip_text = reinterpret_cast<u8*>(ptr);
-        g::clip_size = size;
-    }
-}
 
 static void
 handle_key(key pressed_key)
@@ -248,18 +62,18 @@ handle_key(key pressed_key)
         if(*shortcut_name == "Copy")
         {
             char text[] = "Mateusz";
-            XCopy(g::tmp_window_hndl,
-                  reinterpret_cast<u8*>(text),
-                  static_cast<u32>(array_cnt("Mateusz") - 1));
+            g::tmp_window_hndl->set_clipboard_contents(
+                reinterpret_cast<u8*>(text),
+                static_cast<u32>(array_cnt("Mateusz") - 1));
         }
         else if(*shortcut_name == "Paste")
         {
             u32 buffer[1024];
-            XPaste(g::tmp_window_hndl);
-            if (g::clip_text)
+            g::tmp_window_hndl->load_clipboard_contents();
+            if (g::tmp_window_hndl->clip_text)
             {
-                auto [_, dest] = utf8_to_utf32(g::clip_text,
-                                               g::clip_text + g::clip_size,
+                auto [_, dest] = utf8_to_utf32(g::tmp_window_hndl->clip_text,
+                                               g::tmp_window_hndl->clip_text + g::tmp_window_hndl->clip_size,
                                                buffer,
                                                buffer + 1024);
 
@@ -451,7 +265,7 @@ handle_event(xwindow* win)
     XEvent ev;
     XNextEvent(win->dpy, &ev);
 
-    g::selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
+    win->selection = XInternAtom(win->dpy, "CLIPBOARD", 0);
 
     switch(ev.type)
     {
@@ -561,7 +375,7 @@ handle_event(xwindow* win)
         {
             LOG_INFO("__ SelectionRequest __");
 
-            handle_selection_request(win, &ev.xselectionrequest);
+            win->handle_selection_request(&ev.xselectionrequest);
         } break;
 
         case SelectionClear:
@@ -570,8 +384,8 @@ handle_event(xwindow* win)
 
             // Probobly not really necesarry, but I want to be sure I can do it
             // like this.
-            g::clip_text = nullptr;
-            g::clip_size = 0;
+            win->clip_text = nullptr;
+            win->clip_size = 0;
         } break;
 
         default:

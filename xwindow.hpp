@@ -44,6 +44,19 @@ struct xwindow
 
     xcolorscm scm;
 
+    // TODO: This is part of the clipboard api, and should be separated.
+    u8* clip_text = nullptr;
+    i32 clip_size = 0;
+
+    // Clippboard atoms. TODO: Find a way not to store them here.
+    Atom targets_atom;
+    Atom text_atom;
+    Atom UTF8;
+    Atom XA_ATOM = 4;
+    Atom XA_STRING = 31;
+    Atom selection;
+
+
     xwindow(int width_, int heigth_);
     ~xwindow();
 
@@ -76,6 +89,18 @@ struct xwindow
 
     // Clear the current font.
     void free_font();
+
+    // Aux fucntion used by load_clipboard_contents.
+    std::pair<char*, i32> load_clipboard_contents_aux(Atom atom);
+
+    // If someone wants our selection we send it to them.
+    void handle_selection_request(XSelectionRequestEvent* xsr);
+
+    // Load the xclipboard contents.
+    void load_clipboard_contents();
+
+    // Set the xclipboard contents.
+    void set_clipboard_contents(unsigned char* text, int size);
 };
 
 #endif // XWINDOW_HPP
