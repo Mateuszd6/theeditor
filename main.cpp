@@ -13,7 +13,7 @@ namespace g
 {
 
 // Global font props.
-static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
+static constexpr char const* fontname = "DejaVu Sans Mono:size=9:antialias=true";
 static char const* colornames[] = {
     "#272822", // monokai-background
     "#F8F8F2", // monokai-foreground
@@ -80,13 +80,15 @@ handle_key(key pressed_key)
         else if(*shortcut_name == "Paste")
         {
             u32 buffer[1024];
+
+            // TODO: Change so that more pleasen api is called here!
             g::tmp_window_hndl->load_clipboard_contents();
             if (g::tmp_window_hndl->clip_text)
             {
-                auto [_, dest] = utf8_to_utf32(g::tmp_window_hndl->clip_text,
-                                               g::tmp_window_hndl->clip_text + g::tmp_window_hndl->clip_size,
-                                               buffer,
-                                               buffer + 1024);
+                auto text = reinterpret_cast<u8*>(g::tmp_window_hndl->clip_text);
+                auto [_, dest] = utf8_to_utf32(
+                    text, text + g::tmp_window_hndl->clip_size,
+                    buffer, buffer + 1024);
 
                 add_undo(undo_type::insert,
                          buffer, dest - buffer,
@@ -265,7 +267,8 @@ handle_key(key pressed_key)
         break_undo_chain();
 
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
-        add_undo(undo_type::insert, &(pressed_key.codept), 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
+        add_undo(undo_type::insert, &(pressed_key.codept), 1,
+                 g::buf_pt.curr_line, g::buf_pt.curr_idx);
         g::buf_pt.insert_character_at_point(pressed_key.codept);
     }
 }
@@ -349,7 +352,6 @@ handle_event(xwindow* win)
             if(status == XLookupBoth || status == XLookupKeySym)
             {
                 key pressed_key = { 0, 0, mod_mask };
-
 
                 // Although we have text values for some keys (like escape or
                 // return) we just treat them as special keys.
@@ -500,8 +502,6 @@ draw_textline_aux(xwindow& win, bool is_current,
                       1);
     }
 }
-
-#include "fs.hpp"
 
 int
 main()
@@ -685,16 +685,8 @@ main()
             std::this_thread::sleep_for(16ms - elapsed);
         }
     }
-
-    // NOTE: Since the above loop should not be breaked the cleaup should take
-    //       place in the global exit function
-#if 0
-    win.free_scheme();
-    win.free_font();
-#endif
 }
 
-#include "fs.cpp"
 #include "buffer.cpp"
 #include "gap_buffer.cpp"
 #include "xwindow.cpp"

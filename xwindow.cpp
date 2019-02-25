@@ -13,13 +13,13 @@ xwindow::xwindow(int width_, int heigth_)
     vis = DefaultVisual(dpy, 0);
     cmap = DefaultColormap(dpy, scr);
 
+    if (!dpy)
+        PANIC("Cannot open display!");
+
 #if 0 // TODO: How on earth do i check the member named 'class' in c++?
     if(visual->class != TrueColor)
         PANIC("Cannot handle non true color visual");
 #endif
-
-    if (!dpy)
-        PANIC("Cannot open display!");
 
     XSetWindowAttributes wa;
     wa.background_pixmap = ParentRelative;
@@ -65,7 +65,7 @@ xwindow::xwindow(int width_, int heigth_)
                           XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
                           XNClientWindow, win,
                           XNFocusWindow, win,
-                          NULL);
+                          nullptr);
 
     XSetICFocus(input_xic);
     XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | StructureNotifyMask);
@@ -217,18 +217,18 @@ xwindow::free_font()
 }
 
 std::pair<char*, i32>
-xwindow::load_clipboard_contents_aux(Atom atom)
+xwindow::load_clipboard_contents()
 {
     XEvent event;
     int format;
-    unsigned long N, size;
+    unsigned long N, size = 0;
     char *data;
     char *s = nullptr;
     Atom target,
          CLIPBOARD = XInternAtom(dpy, "CLIPBOARD", 0),
          XSEL_DATA = XInternAtom(dpy, "XSEL_DATA", 0);
 
-    XConvertSelection(dpy, CLIPBOARD, atom, XSEL_DATA, win, CurrentTime);
+    XConvertSelection(dpy, CLIPBOARD, UTF8, XSEL_DATA, win, CurrentTime);
     XSync(dpy, 0);
 
     while(1)
@@ -285,9 +285,12 @@ xwindow::load_clipboard_contents_aux(Atom atom)
     }
 
 done:
-    // TODO: Store the original version, but return the version converted into utf32.
+    if(clip_text)
+        free(clip_text);
+    clip_text = s;
+    clip_size = size;
 
-    return { s, size };
+    return { clip_text, clip_size };
 }
 
 void
@@ -329,8 +332,8 @@ xwindow::handle_selection_request(XSelectionRequestEvent* xsr)
                             XA_STRING,
                             8,
                             PropModeReplace,
-                            clip_text,
-                            clip_size);
+                            reinterpret_cast<u8 const*>(clip_text),
+                            static_cast<i32>(clip_size));
     }
     else if (select_ev.target == UTF8)
     {
@@ -340,8 +343,8 @@ xwindow::handle_selection_request(XSelectionRequestEvent* xsr)
                             UTF8,
                             8,
                             PropModeReplace,
-                            clip_text,
-                            clip_size);
+                            reinterpret_cast<u8 const*>(clip_text),
+                            static_cast<i32>(clip_size));
     }
     else
     {
@@ -365,22 +368,11 @@ xwindow::set_clipboard_contents(unsigned char* text, int size)
     // TODO: Investigate if this is worth/needed to store in the class.
     Atom selection = XInternAtom(dpy, "CLIPBOARD", 0);
 
-    clip_text = static_cast<u8*>(malloc(size));
+    clip_text = static_cast<char*>(malloc(size));
     clip_size = size;
     memcpy(clip_text, text, size);
 
     XSetSelectionOwner(dpy, selection, win, 0);
     if (XGetSelectionOwner(dpy, selection) != win)
         return;
-}
-
-void
-xwindow::load_clipboard_contents()
-{
-    auto[ptr, size] = load_clipboard_contents_aux(UTF8);
-
-    if(clip_text)
-        free(clip_text);
-    clip_text = reinterpret_cast<u8*>(ptr);
-    clip_size = size;
 }

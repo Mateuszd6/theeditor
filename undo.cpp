@@ -145,8 +145,12 @@ undo()
             LOG_WARN("Undoing insertion _inplace_ of [%ld] characters at %lu:%lu: %s",
                      len, mdata->line, mdata->index, buffer);
 
-            add_undo_impl(undo_type::remove_inplace, data_head, len, mdata->line, mdata->index);
-            apply_remove(data_head, len, mdata->line, mdata->index);
+            add_undo_impl(undo_type::remove_inplace,
+                          data_head, len,
+                          mdata->line, mdata->index);
+
+            apply_remove(data_head, len,
+                         mdata->line, mdata->index);
         } break;
 
         case undo_type::remove:
