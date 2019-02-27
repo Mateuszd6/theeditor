@@ -22,8 +22,7 @@ struct text_buffer
     void move_gap_to_buffer_end();
 
     bool insert_character(umm line, umm point, u32 character);
-    bool insert_newline(umm line);
-    bool insert_newline_correct(umm line, umm point);
+    bool insert_newline(umm line, umm point);
 
     bool delete_line(umm line);
 

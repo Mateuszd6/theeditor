@@ -82,35 +82,30 @@ bool text_buffer::insert_character(umm line, umm point, u32 character)
     return true;
 }
 
-/// line - number of line after we insert newline.
-bool text_buffer::insert_newline(umm line)
+bool text_buffer::insert_newline(umm line, umm point)
 {
+    ASSERT(line < size());
+    ASSERT(point <= get_line(line)->size());
+
+    // TODO: Encapsulate realloc.
     if(gap_size() <= 2) // TODO: Make constants.
     {
         move_gap_to_buffer_end();
         capacity *= 2;
 
-        // TODO: Fix realloc.
+        // TODO: Fix realloc. Check and abort on leaks.
         lines = static_cast<gap_buffer*>(realloc(lines, sizeof(gap_buffer) * capacity));
         gap_end = capacity;
     }
-
     move_gap_to_point(line + 1);
     gap_start++;
+
+
+    // TODO(LEAK): This is a leak! Make sure it is fixed.
     lines[line + 1].initialize();
 
-    // TODO: Case when there is not enought memory.
-    return true;
-}
-
-bool text_buffer::insert_newline_correct(umm line, umm point)
-{
-    ASSERT(line < size());
-
-    insert_newline(line);
     auto edited_line = get_line(line);
     auto created_line = get_line(line + 1);
-    ASSERT(point <= edited_line->size());
 
     for(auto i = point; i < edited_line->size(); ++i)
         created_line->insert_at_point(i - point, edited_line->get(i));
@@ -264,7 +259,7 @@ bool buffer_point::insert_character_at_point(u32 character)
 
 bool buffer_point::insert_newline_at_point()
 {
-    buffer_ptr->insert_newline_correct(curr_line, curr_idx);
+    buffer_ptr->insert_newline(curr_line, curr_idx);
 
     curr_line++;
     curr_idx = 0;
@@ -573,7 +568,8 @@ write_to_buffer(text_buffer* buffer,
 
         if(curr != end) // Different than end means newline character.
         {
-            buffer->insert_newline(line++);
+            buffer->insert_newline(line, buffer->get_line(line)->size());
+            line++;
 
             idx = 0;
             ++curr;

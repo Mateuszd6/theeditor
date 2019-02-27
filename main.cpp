@@ -13,7 +13,7 @@ namespace g
 {
 
 // Global font props.
-static constexpr char const* fontname = "DejaVu Sans Mono:size=9:antialias=true";
+static constexpr char const* fontname = "DejaVu Sans Mono:size=11:antialias=true";
 static char const* colornames[] = {
     "#272822", // monokai-background
     "#F8F8F2", // monokai-foreground
