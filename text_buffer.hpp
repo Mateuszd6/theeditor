@@ -1,17 +1,20 @@
-#ifndef BUFFER_HPP
-#define BUFFER_HPP
+#ifndef TEXT_BUFFER_HPP
+#define TEXT_BUFFER_HPP
 
 #include "gap_buffer.hpp"
+#include "undo.hpp"
 #include "utf.hpp"
 
 #define NUMBER_OF_LINES_IN_BUFFER (256)
 
-struct buffer
+struct text_buffer
 {
     gap_buffer* lines;
     umm capacity;
     umm gap_start;
     umm gap_end;
+
+    undo_buffer undo_buf;
 
     void initialize();
 
@@ -28,17 +31,20 @@ struct buffer
     umm gap_size() const;
     gap_buffer* get_line(umm line) const;
 
+    void apply_insert(u32* data, mm len, u64 line, u64 index);
+    void apply_remove(u32* data, mm len, u64 line, u64 index);
+
     void DEBUG_print_state() const;
 };
 
-static buffer* create_buffer_from_file(char const* file_path);
+static text_buffer* create_buffer_from_file(char const* file_path);
 
 // TODO: Error code on fail.
-static void save_buffer(buffer* buf, char const* file_path, encoding enc);
+static void save_buffer(text_buffer* buf, char const* file_path, encoding enc);
 
 struct buffer_point
 {
-    buffer* buffer_ptr;
+    text_buffer* buffer_ptr;
     u64 first_line;
     u64 curr_line;
     u64 curr_idx;
@@ -72,7 +78,7 @@ struct buffer_point
     bool point_is_valid();
 };
 
-static buffer_point create_buffer_point(buffer* buffer_ptr);
+static buffer_point create_buffer_point(text_buffer* buffer_ptr);
 
 
-#endif // BUFFER_HPP
+#endif // TEXT_BUFFER_HPP

@@ -1,7 +1,7 @@
 #include "xwindow.hpp"
 
 #include "gap_buffer.hpp"
-#include "buffer.hpp"
+#include "text_buffer.hpp"
 #include "strref.hpp"
 #include "utf.hpp"
 #include "internals.hpp"
@@ -34,7 +34,6 @@ static i32 font_descent;
 static i32 font_height;
 
 // Global buffer props.
-static buffer* file_buffer;
 static buffer_point buf_pt;
 static bool buffer_is_dirty = true;
 
@@ -53,11 +52,11 @@ handle_key(key pressed_key)
         // TODO: Checking the name makes no sense, but is temporary anyways.
         if (*shortcut_name == "Undo")
         {
-            undo();
+            g::buf_pt.buffer_ptr->undo_buf.undo();
             return;
         }
         else
-            break_undo_chain();
+            g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         if(*shortcut_name == "Copy")
         {
@@ -90,7 +89,7 @@ handle_key(key pressed_key)
                     text, text + g::tmp_window_hndl->clip_size,
                     buffer, buffer + 1024);
 
-                add_undo(undo_type::insert,
+                g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert,
                          buffer, dest - buffer,
                          g::buf_pt.curr_line, g::buf_pt.curr_idx);
 
@@ -119,14 +118,14 @@ handle_key(key pressed_key)
     }
     else if (pressed_key.codept == 0)
     {
-        break_undo_chain();
+        g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         LOG_INFO("[%s] is a special key", keycode_names[pressed_key.keycode]);
         switch(pressed_key.keycode)
         {
             case keycode_values::Escape:
             {
-                DEBUG_print_state();
+                g::buf_pt.buffer_ptr->undo_buf.DEBUG_print_state();
             } break;
 
             // TODO: Undo and buffer pt logic must be merge.
@@ -139,7 +138,7 @@ handle_key(key pressed_key)
                                       ->get_line(g::buf_pt.curr_line)
                                       ->get(g::buf_pt.curr_idx - 1));
 
-                    add_undo(undo_type::remove, &removed_ch, 1,
+                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove, &removed_ch, 1,
                              g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
                     bool char_removed = g::buf_pt.remove_character_backward();
                     ASSERT(char_removed);
@@ -148,7 +147,7 @@ handle_key(key pressed_key)
                 {
                     u32 removed_ch = static_cast<u32>('\n');
 
-                    add_undo(undo_type::remove, &removed_ch, 1,
+                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove, &removed_ch, 1,
                              g::buf_pt.curr_line - 1,
                              g::buf_pt.buffer_ptr->get_line(g::buf_pt.curr_line - 1)->size());
                     bool char_removed = g::buf_pt.remove_character_backward();
@@ -173,7 +172,7 @@ handle_key(key pressed_key)
                                   ->get_line(g::buf_pt.curr_line)
                                   ->get(g::buf_pt.curr_idx));
 
-                    add_undo(undo_type::remove_inplace,
+                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove_inplace,
                              &removed_ch, 1,
                              g::buf_pt.curr_line, g::buf_pt.curr_idx);
                     bool char_removed = g::buf_pt.remove_character_forward();
@@ -183,7 +182,7 @@ handle_key(key pressed_key)
                 {
                     u32 removed_ch = static_cast<u32>('\n');
 
-                    add_undo(undo_type::remove_inplace,
+                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove_inplace,
                              &removed_ch, 1,
                              g::buf_pt.curr_line, g::buf_pt.curr_idx);
                     bool char_removed = g::buf_pt.remove_character_forward();
@@ -205,7 +204,7 @@ handle_key(key pressed_key)
                     static_cast<u32>(' ')
                 };
 
-                add_undo(undo_type::insert, buffer, 4,
+                g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert, buffer, 4,
                          g::buf_pt.curr_line, g::buf_pt.curr_idx);
 
                 for(auto i = 0; i < 4; ++i)
@@ -217,7 +216,7 @@ handle_key(key pressed_key)
             case keycode_values::Return:
             {
                 u32 newline_ch = static_cast<u32>('\n');
-                add_undo(undo_type::insert, &newline_ch, 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
+                g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert, &newline_ch, 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
                 g::buf_pt.insert_newline_at_point();
             } break;
 
@@ -264,10 +263,10 @@ handle_key(key pressed_key)
     }
     else
     {
-        break_undo_chain();
+        g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
-        add_undo(undo_type::insert, &(pressed_key.codept), 1,
+        g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert, &(pressed_key.codept), 1,
                  g::buf_pt.curr_line, g::buf_pt.curr_idx);
         g::buf_pt.insert_character_at_point(pressed_key.codept);
     }
@@ -558,30 +557,30 @@ main()
 #endif
 
     LOG_INFO("Using font: %s", g::fontname);
-    g::file_buffer = create_buffer_from_file("./test");
+    g::buf_pt.buffer_ptr = create_buffer_from_file("./test");
 
 #if 0 // TODO: Temporary stuff for testing the file + unicode api.
-    for(umm i = 0; i < g::file_buffer->size(); ++i)
+    for(umm i = 0; i < g::buf_pt.buffer_ptr->size(); ++i)
     {
-        mm line_size = g::file_buffer->get_line(i)->size();
+        mm line_size = g::buf_pt.buffer_ptr->get_line(i)->size();
         i32 random_number = line_size == 0 ? 0 : std::random_device()() % line_size;
-        g::file_buffer
+        g::buf_pt.buffer_ptr
             ->get_line(i)
             ->insert_at_point(random_number,
                               static_cast<u32>('a' + std::random_device()() % 10));
 
-        g::file_buffer
+        g::buf_pt.buffer_ptr
             ->get_line(i)
             ->delete_char_forward(random_number);
     }
 
-    save_buffer(g::file_buffer, "./saved_test", encoding::utf8);
+    save_buffer(g::buf_pt.buffer_ptr, "./saved_test", encoding::utf8);
     system("diff -s ./test ./saved_test");
     return 0;
 #endif
 
 
-    g::buf_pt = create_buffer_point(g::file_buffer);
+    g::buf_pt = create_buffer_point(g::buf_pt.buffer_ptr);
 
     xwindow win{ 400, 500 };
     g::tmp_window_hndl = &win;
@@ -639,14 +638,14 @@ main()
                 for(auto k = 0; k < no_lines; ++k)
                 {
                     auto line_to_draw = k + g::buf_pt.first_line;
-                    if(line_to_draw >= g::file_buffer->size())
+                    if(line_to_draw >= g::buf_pt.buffer_ptr->size())
                         break;
 
                     auto basex = 18;
                     auto basey = 16 + (k + 1) * g::font_height - g::font_descent;
 
                     strref refs[2];
-                    g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
+                    g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs(refs);
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
                                       16, static_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
@@ -658,7 +657,7 @@ main()
                     auto line_to_draw = k + g::buf_pt.first_line;
 
                     // We can be starting from bot and not have a full buffer.
-                    if(line_to_draw >= g::file_buffer->size())
+                    if(line_to_draw >= g::buf_pt.buffer_ptr->size())
                         continue;
 
                     auto basex = 18;
@@ -666,7 +665,7 @@ main()
                         ((no_lines - 1) - k) * g::font_height - g::font_descent;
 
                     strref refs[2];
-                    g::file_buffer->get_line(line_to_draw)->to_str_refs(refs);
+                    g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs(refs);
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
                                       16, static_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
@@ -687,7 +686,7 @@ main()
     }
 }
 
-#include "buffer.cpp"
+#include "text_buffer.cpp"
 #include "gap_buffer.cpp"
 #include "xwindow.cpp"
 #include "utf.cpp"

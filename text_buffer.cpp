@@ -1,14 +1,14 @@
 #include "cstdio"
 
-// TODO(Cleanup): Try to use as less globals as possible...
+// TODO(Cleanup): Globals.
 namespace g
 {
 static int number_of_buffers = 0;
-static buffer buffers[256];
+static text_buffer buffers[256];
 }
 
 // Line 0 is valid.
-void buffer::initialize()
+void text_buffer::initialize()
 {
     // prev_chunks_size = 0;
     lines = static_cast<gap_buffer*>(
@@ -21,7 +21,7 @@ void buffer::initialize()
 }
 
 /// After this move point'th line is not valid and must be initialized before use.
-void buffer::move_gap_to_point(umm point)
+void text_buffer::move_gap_to_point(umm point)
 {
     if (point < gap_start)
     {
@@ -50,7 +50,7 @@ void buffer::move_gap_to_point(umm point)
         UNREACHABLE();
 }
 
-void buffer::move_gap_to_buffer_end()
+void text_buffer::move_gap_to_buffer_end()
 {
     if (gap_end == capacity)
         LOG_WARN("Gap already at the end.");
@@ -68,7 +68,7 @@ void buffer::move_gap_to_buffer_end()
 }
 
 // TODO: Dont use it. Use: get_line()->insert....
-bool buffer::insert_character(umm line, umm point, u32 character)
+bool text_buffer::insert_character(umm line, umm point, u32 character)
 {
     get_line(line)->insert_at_point(point, character);
 
@@ -83,7 +83,7 @@ bool buffer::insert_character(umm line, umm point, u32 character)
 }
 
 /// line - number of line after we insert newline.
-bool buffer::insert_newline(umm line)
+bool text_buffer::insert_newline(umm line)
 {
     if(gap_size() <= 2) // TODO: Make constants.
     {
@@ -103,7 +103,7 @@ bool buffer::insert_newline(umm line)
     return true;
 }
 
-bool buffer::insert_newline_correct(umm line, umm point)
+bool text_buffer::insert_newline_correct(umm line, umm point)
 {
     ASSERT(line < size());
 
@@ -119,7 +119,7 @@ bool buffer::insert_newline_correct(umm line, umm point)
     return true;
 }
 
-bool buffer::delete_line(umm line)
+bool text_buffer::delete_line(umm line)
 {
     ASSERT(line > 0);
     ASSERT(line < size());
@@ -142,17 +142,17 @@ bool buffer::delete_line(umm line)
     return true;
 }
 
-umm buffer::size() const
+umm text_buffer::size() const
 {
     return capacity - gap_size();
 }
 
-umm buffer::gap_size() const
+umm text_buffer::gap_size() const
 {
     return gap_end - gap_start;
 }
 
-gap_buffer* buffer::get_line(umm line) const
+gap_buffer* text_buffer::get_line(umm line) const
 {
     ASSERT(line < size());
 
@@ -160,6 +160,63 @@ gap_buffer* buffer::get_line(umm line) const
         return &lines[line];
     else
         return &lines[gap_end + (line - gap_start)];
+}
+
+// TODO: DO NOT MODIFY GLOBAL STATE. THIS IS NOT FINISHED YET!
+void text_buffer::apply_insert(u32* data_head, mm len, u64 line, u64 index)
+{
+    // TODO: This should reset last_line_idx. Make a safe ctor.
+    g::buf_pt.curr_line = line;
+    g::buf_pt.curr_idx = index;
+
+    for(int i = 0; i < len; ++i)
+    {
+        ASSERT(g::buf_pt.point_is_valid());
+
+        if(data_head[i] == static_cast<u32>('\n'))
+        {
+            bool line_added = g::buf_pt.insert_newline_at_point();
+            ASSERT(line_added);
+        }
+        else
+        {
+            bool inserted = g::buf_pt.insert_character_at_point(data_head[i]);
+            ASSERT(inserted);
+        }
+    }
+}
+
+// TODO: DO NOT MODIFY GLOBAL STATE. THIS IS NOT FINISHED YET!
+void text_buffer::apply_remove(u32* data_head, mm len, u64 line, u64 index)
+{
+    // TODO: This should reset last_line_idx. Make a safe ctor.
+    g::buf_pt.curr_line = line;
+    g::buf_pt.curr_idx = index;
+
+    for(int i = 0; i < len; ++i)
+    {
+        ASSERT(g::buf_pt.point_is_valid());
+
+        if(data_head[i] == '\n')
+        {
+            // Assert that we are at the end of the line.
+            ASSERT(g::buf_pt.buffer_ptr
+                   ->get_line(g::buf_pt.curr_line)
+                   ->size() == g::buf_pt.curr_idx);
+
+            bool line_removed = g::buf_pt.remove_character_forward();
+            ASSERT(line_removed);
+        }
+        else
+        {
+            ASSERT(g::buf_pt.buffer_ptr
+                   ->get_line(g::buf_pt.curr_line)
+                   ->get(g::buf_pt.curr_idx) == data_head[i]);
+
+            bool removed = g::buf_pt.remove_character_forward();
+            ASSERT(removed);
+        }
+    }
 }
 
 #if 0
@@ -497,7 +554,7 @@ read_full_file(char const* filename)
 // Write to buffer starting from line'th line, and idx'th character.
 // Returns the pair (line + idx) at which the inserting has ended.
 static inline std::pair<mm, mm>
-write_to_buffer(buffer* buffer,
+write_to_buffer(text_buffer* buffer,
     mm line, mm idx,
     u32 const* begin, u32 const* end)
 {
@@ -531,7 +588,7 @@ write_to_buffer(buffer* buffer,
 
 // TODO: Move to the file api.
 static inline void
-load_file_into_buffer_utf8(buffer* buffer, char const* file_path)
+load_file_into_buffer_utf8(text_buffer* buffer, char const* file_path)
 {
     constexpr i32 chunk_size = 1024;
     u32 output_chunk[chunk_size];
@@ -574,7 +631,7 @@ load_file_into_buffer_utf8(buffer* buffer, char const* file_path)
 
 // TODO: Non-stupid file reader. Chunk by chunk. Do after unicode is implemented
 //       in the gap buffer.
-static buffer*
+static text_buffer*
 create_buffer_from_file(char const* file_path)
 {
     auto result = g::buffers + g::number_of_buffers++;
@@ -643,7 +700,7 @@ create_buffer_from_file(char const* file_path)
 
 // TODO: Benchmark this.
 static void
-save_buffer_utf8(buffer* buf, char const* file_path)
+save_buffer_utf8(text_buffer* buf, char const* file_path)
 {
     constexpr i32 chunk_size = 1024;
     u8 output_chunk[chunk_size];
@@ -698,7 +755,7 @@ save_buffer_utf8(buffer* buf, char const* file_path)
 }
 
 static void
-save_buffer(buffer* buf, char const* file_path, encoding enc)
+save_buffer(text_buffer* buf, char const* file_path, encoding enc)
 {
     if (enc == encoding::utf8)
         save_buffer_utf8(buf, file_path);
@@ -706,7 +763,7 @@ save_buffer(buffer* buf, char const* file_path, encoding enc)
         PANIC("Saving the buffer in this encoding is not supported.");
 }
 
-static buffer_point create_buffer_point(buffer* buffer_ptr)
+static buffer_point create_buffer_point(text_buffer* buffer_ptr)
 {
     auto result = buffer_point {};
     result.buffer_ptr = buffer_ptr;
