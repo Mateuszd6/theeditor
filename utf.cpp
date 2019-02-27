@@ -253,7 +253,7 @@ utf8_to_utf32(u8 const* src_begin,
         if (!detail::utf8_to_utf32_dec_advc_safe(src_begin, src_end, dest_begin))
             break;
 
-    return std::make_pair(src_begin, dest_begin);
+    return { src_begin, dest_begin };
 }
 
 static inline std::pair<u32 const*, u8*>
@@ -269,5 +269,5 @@ utf32_to_utf8(u32 const* src_begin,
         if (!utf8_to_utf32_dec_advc_safe(src_begin, dest_begin, dest_end))
             break;
 
-    return std::make_pair(src_begin, dest_begin);
+    return { src_begin, dest_begin };
 }

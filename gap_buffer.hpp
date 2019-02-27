@@ -1,6 +1,5 @@
 // TODO:
 //       * Don't touch the gap, when buffer is allocated.
-//       * Unicode
 //       * fancy up the api for inserting sequences, etc.
 
 #ifndef GAP_BUFFER_HPP
@@ -46,55 +45,53 @@ struct gap_buffer
     /// Move tha gap so that gap_start is at the point. Called by inserting
     /// character if the gap is at the different place by the start of the
     /// operation. Assertion: gap_start == buffer + point after this operation.
-    void move_gap_to_point(umm point);
+    void move_gap_to_point(mm point);
 
     /// Place the gap and the end of tha buffer.
-    /// NOTE: For now it assumes that buffer is not sso'ed.
     void move_gap_to_buffer_end();
 
     /// Set the gap size to 'n' characters if is is smaller. Does nothing if the
-    /// gap size is already greater or equal 'n'. It assumes that buffer is not
-    /// sso'ed.
-    void reserve_gap(umm n);
+    /// gap size is already greater or equal 'n'.
+    void reserve_gap(mm n);
 
     /// Insert character at point. Will move the gap to the pointed location if
     /// necesarry. Can exapnd buffer memory.
-    void insert_at_point(umm point, u32 character);
+    void insert(mm point, u32 character);
 
     /// Insert character at point. Will move the gap to the pointed location if
     /// necesarry. Can exapnd buffer memory.
-    void insert_sequence_at_point(umm point, u32* begin, u32* end);
+    void insert_range(mm point, u32 const* begin, u32 const* end);
 
     /// Insert character at point. This doesn't move a gap or expand memory.
-    void replace_at_point(umm point, u32 character);
+    void replace_at_point(mm point, u32 character);
 
     /// Delete the character currently on the given point. Will move the gap to
     /// the pointed location if necesarry. Can shrink buffer memory.
-    bool delete_char_backward(umm point);
+    bool delete_char_backward(mm point);
 
     /// Delete the character currently on the given point. Should give the same
     /// result as moving forward one character and removing character backward.
     /// Will move the gap to the pointed location if necesarry. Can shrink
     /// buffer memory.
-    bool delete_char_forward(umm point);
+    bool delete_char_forward(mm point);
 
     /// Efficiently clears the text to the end of the line by moving a gap.
-    bool delete_to_the_end_of_line(umm point);
+    bool delete_to_the_end_of_line(mm point);
 
     /// Returns the number of characters stored in the buffer. Assertion: size()
     /// + gap_size() == capacity for every vaild state of gap buffer.
-    umm size() const;
+    mm size() const;
 
     /// Returns a size of the gap. Assertion: size() + gap_size() == capacity,
     /// for every vaild state of gap buffer.
-    umm gap_size() const;
+    mm gap_size() const;
 
     /// Return the idx'th character in the buffer.
-    u32 get(umm idx) const;
+    u32 get(mm idx) const;
 
     /// Operator alias for the 'get' function. Returns the idx'th character in
     /// the buffer.
-    u32 operator[](umm idx) const;
+    u32 operator[](mm idx) const;
 
     /// Returns the c_str representation of the line. Allocates the memory for
     /// the string. The caller is repsonsible for freeing this memory.

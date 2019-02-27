@@ -10,25 +10,25 @@
 struct text_buffer
 {
     gap_buffer* lines;
-    umm capacity;
-    umm gap_start;
-    umm gap_end;
+    mm capacity;
+    mm gap_start;
+    mm gap_end;
 
     undo_buffer undo_buf;
 
     void initialize();
 
-    void move_gap_to_point(umm point);
+    void move_gap_to_point(mm point);
     void move_gap_to_buffer_end();
 
-    bool insert_character(umm line, umm point, u32 character);
-    bool insert_newline(umm line, umm point);
+    bool insert_character(mm line, mm point, u32 character);
+    bool insert_newline(mm line, mm point);
 
-    bool delete_line(umm line);
+    bool delete_line(mm line);
 
-    umm size() const;
-    umm gap_size() const;
-    gap_buffer* get_line(umm line) const;
+    mm size() const;
+    mm gap_size() const;
+    gap_buffer* get_line(mm line) const;
 
     void apply_insert(u32* data, mm len, u64 line, u64 index);
     void apply_remove(u32* data, mm len, u64 line, u64 index);
@@ -44,9 +44,9 @@ static void save_buffer(text_buffer* buf, char const* file_path, encoding enc);
 struct buffer_point
 {
     text_buffer* buffer_ptr;
-    u64 first_line;
-    u64 curr_line;
-    u64 curr_idx;
+    mm first_line;
+    mm curr_line;
+    mm curr_idx;
 
     /// If the line is switched to the much shorter one, and the current
     /// index is truncated to the end, ths value holds the previous index
@@ -67,8 +67,8 @@ struct buffer_point
     bool character_left();
     bool line_up();
     bool line_down();
-    bool jump_up(u64 number_of_lines);
-    bool jump_down(u64 number_of_lines);
+    bool jump_up(mm number_of_lines);
+    bool jump_down(mm number_of_lines);
     bool line_start();
     bool line_end();
     bool buffer_start();

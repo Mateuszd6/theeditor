@@ -20,7 +20,7 @@ void gap_buffer::initialize()
     gap_end = buffer + capacity;
 }
 
-void gap_buffer::move_gap_to_point(umm point)
+void gap_buffer::move_gap_to_point(mm point)
 {
     ASSERT(point <= size());
     if (buffer + point == gap_start)
@@ -57,18 +57,20 @@ void gap_buffer::move_gap_to_buffer_end()
     }
 }
 
-void gap_buffer::reserve_gap(umm n)
+void gap_buffer::reserve_gap(mm n)
 {
-    // ASSERT(!sso_enabled());
+    LOG_INFO("Reserve: %ld", n);
+
     if (gap_size() < n)
     {
         move_gap_to_buffer_end();
         LOG_DEBUG("Doing realloc.");
 
-        auto gap_start_idx = gap_start - buffer;
-        auto new_gap_size = n - gap_size();
-        auto new_size = capacity + new_gap_size;
+        mm gap_start_idx = gap_start - buffer;
+        mm new_gap_size = n - gap_size();
+        mm new_size = capacity + new_gap_size;
 
+#if 0
         // TODO: realloc.
         auto new_ptr = static_cast<u32*>(malloc(sizeof(u32) * new_size));
         memmove(new_ptr, buffer, sizeof(u32) * capacity);
@@ -78,51 +80,71 @@ void gap_buffer::reserve_gap(umm n)
             buffer = new_ptr;
         else
             PANIC("Realloc has failed.");
+#else
+        buffer = static_cast<u32*>(realloc(buffer, sizeof(u32) * new_size));
+#endif
 
         capacity = new_size;
         gap_start = buffer + gap_start_idx;
         gap_end = buffer + capacity;
+
+        LOG_WARN("Realloced the gap. New size: %ld", gap_size());
     }
+    else
+        LOG_INFO("Gap untouched, still: %ld", gap_size());
 }
 
-void gap_buffer::insert_at_point(umm point, u32 character)
+void gap_buffer::insert(mm point, u32 character)
 {
     ASSERT(point <= size());
-
     move_gap_to_point(point);
 
+    LOG_INFO("Inserting 1 character");
+
+    // If after the insert the gap would be less that we permit, realloc.
+    if (gap_size() - 1 <= GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND)
+        reserve_gap(gap_size() + GAP_BUF_SIZE_AFTER_REALLOC + 1);
     *gap_start++ = character;
 
-    // Expand memory if needed:
-    if (gap_size() <= GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND)
+    ASSERT(gap_size() > GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND);
+}
+
+void gap_buffer::insert_range(mm point, u32 const* begin, u32 const* end)
+{
+    ASSERT(point <= size());
+    move_gap_to_point(point);
+
+    LOG_INFO("Inserting range of %ld characters", end - begin);
+
+    mm check = gap_size() - (end - begin + 1);
+    (void(check));
+
+    // If after the insert the gap would be smaller then we permit, realloc.
+    if (static_cast<mm>(gap_size()) - (end - begin + 1) <= GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND)
+        reserve_gap(gap_size() + GAP_BUF_SIZE_AFTER_REALLOC + (end - begin + 1));
+
+    while(begin != end)
     {
-        reserve_gap(GAP_BUF_SIZE_AFTER_REALLOC);
-        LOG_WARN("Gap size after reallocing: %ld", gap_size());
+        *gap_start++ = *begin++;
+        ASSERT(gap_size() > GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND);
     }
 
     ASSERT(gap_size() > GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND);
 }
 
-void gap_buffer::insert_sequence_at_point(umm point, u32* begin, u32* end)
-{
-    reserve_gap(size() + end - begin + 1);
-    while(begin != end)
-        insert_at_point(point++, *begin++);
-}
-
-void gap_buffer::replace_at_point(umm point, u32 character)
+void gap_buffer::replace_at_point(mm point, u32 character)
 {
     ASSERT(point < size());
 
 
-    auto ptr = (static_cast<mm>(point) < (gap_start - buffer)
+    auto ptr = (point < (gap_start - buffer)
                 ? buffer + point
                 : gap_end + (point - (gap_start - buffer)));
 
     *ptr = character;
 }
 
-bool gap_buffer::delete_char_backward(umm point)
+bool gap_buffer::delete_char_backward(mm point)
 {
     ASSERT(0 < point && point <= size());
 
@@ -143,8 +165,10 @@ bool gap_buffer::delete_char_backward(umm point)
         return false;
 }
 
-bool gap_buffer::delete_char_forward(umm point)
+bool gap_buffer::delete_char_forward(mm point)
 {
+    ASSERT(point >= 0);
+
     if(point == size())
         return false;
 
@@ -152,8 +176,9 @@ bool gap_buffer::delete_char_forward(umm point)
     return true;
 }
 
-bool gap_buffer::delete_to_the_end_of_line(umm point)
+bool gap_buffer::delete_to_the_end_of_line(mm point)
 {
+    ASSERT(point >= 0);
     ASSERT(point <= size());
 
     move_gap_to_point(point);
@@ -162,26 +187,29 @@ bool gap_buffer::delete_to_the_end_of_line(umm point)
     return true;
 }
 
-umm gap_buffer::size() const
+mm gap_buffer::size() const
 {
     return capacity - gap_size();
 }
 
-umm gap_buffer::gap_size() const
+mm gap_buffer::gap_size() const
 {
     return (gap_end - gap_start);
 }
 
-u32 gap_buffer::get(umm idx) const
+u32 gap_buffer::get(mm idx) const
 {
+    ASSERT(idx >= 0);
+
     if (static_cast<mm>(idx) < (gap_start - buffer))
         return *(buffer + idx);
     else
         return *(gap_end + (idx - (gap_start - buffer)));
 }
 
-u32 gap_buffer::operator [](umm idx) const
+u32 gap_buffer::operator [](mm idx) const
 {
+    ASSERT(idx >= 0);
     return get(idx);
 }
 

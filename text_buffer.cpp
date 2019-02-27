@@ -21,14 +21,14 @@ void text_buffer::initialize()
 }
 
 /// After this move point'th line is not valid and must be initialized before use.
-void text_buffer::move_gap_to_point(umm point)
+void text_buffer::move_gap_to_point(mm point)
 {
     if (point < gap_start)
     {
-        auto diff = gap_start - point;
+        mm diff = gap_start - point;
         auto dest_start = gap_end - diff;
         auto source_start = point;
-        for (auto i = static_cast<i64>(diff - 1); i >= 0; --i)
+        for (mm i = diff - 1; i >= 0; --i)
             move_gap_bufffer(&lines[source_start + i], &lines[dest_start + i]);
 
         gap_start -= diff;
@@ -36,16 +36,18 @@ void text_buffer::move_gap_to_point(umm point)
     }
     else if (point > gap_start)
     {
-        auto diff = point - gap_start;
+        mm diff = point - gap_start;
         auto dest_start = gap_start;
         auto source_start = gap_end;
-        for (auto i = 0_u64; i < diff; ++i)
+        for (mm i = 0; i < diff; ++i)
             move_gap_bufffer(&lines[source_start + i], &lines[dest_start + i]);
 
         gap_start += diff;
         gap_end += diff;
     }
-    else if (point == gap_start) { }
+    else if (point == gap_start)
+    {
+    }
     else
         UNREACHABLE();
 }
@@ -59,7 +61,7 @@ void text_buffer::move_gap_to_buffer_end()
         auto diff = capacity - gap_end;
         auto dest_start = gap_start;
         auto source_start = gap_end;
-        for (auto i = 0_u64; i < diff; ++i)
+        for (mm i = 0; i < diff; ++i)
             move_gap_bufffer(&lines[source_start + i], &lines[dest_start + i]);
 
         gap_start += diff;
@@ -68,23 +70,20 @@ void text_buffer::move_gap_to_buffer_end()
 }
 
 // TODO: Dont use it. Use: get_line()->insert....
-bool text_buffer::insert_character(umm line, umm point, u32 character)
+bool text_buffer::insert_character(mm line, mm point, u32 character)
 {
-    get_line(line)->insert_at_point(point, character);
+    ASSERT(line >= 0);
+    ASSERT(point >= 0);
 
-    // TODO: Change for normal assertion (if it is really necesarry, becasuse it
-    //       looks usless).
-#if 0
-    if (get_line(line)->gap_start == nullptr)
-        PANIC("Nooooooo");
-#endif
-
+    get_line(line)->insert(point, character);
     return true;
 }
 
-bool text_buffer::insert_newline(umm line, umm point)
+bool text_buffer::insert_newline(mm line, mm point)
 {
+    ASSERT(line >= 0);
     ASSERT(line < size());
+    ASSERT(point >= 0);
     ASSERT(point <= get_line(line)->size());
 
     // TODO: Encapsulate realloc.
@@ -100,55 +99,65 @@ bool text_buffer::insert_newline(umm line, umm point)
     move_gap_to_point(line + 1);
     gap_start++;
 
-
     // TODO(LEAK): This is a leak! Make sure it is fixed.
     lines[line + 1].initialize();
 
     auto edited_line = get_line(line);
     auto created_line = get_line(line + 1);
-
     for(auto i = point; i < edited_line->size(); ++i)
-        created_line->insert_at_point(i - point, edited_line->get(i));
-
+        created_line->insert(i - point, edited_line->get(i));
     edited_line->delete_to_the_end_of_line(point);
+
     return true;
 }
 
-bool text_buffer::delete_line(umm line)
+bool text_buffer::delete_line(mm line)
 {
     ASSERT(line > 0);
     ASSERT(line < size());
     move_gap_to_point(line + 1); // TODO(NEXT): What about it!
 
-    auto prev_line = get_line(line - 1);
-    auto removed_line = get_line(line);
-    auto prev_line_size = prev_line->size();
-    auto removed_line_size = removed_line->size();
-    auto prev_line_idx = prev_line_size;
+    gap_buffer* prev_line = get_line(line - 1);
+    gap_buffer* removed_line = get_line(line);
+
+    // The index where removed line characters will be inserted.
+    mm prev_line_idx = prev_line->size();
 
     // TODO: Don't use the constant. Think about optimal value here!
-    prev_line->reserve_gap(removed_line_size + 4);
-    for(auto i = 0_u64; i < removed_line_size; ++i)
-        prev_line->insert_at_point(prev_line_idx++, removed_line->get(i));
+    prev_line->insert_range(prev_line_idx,
+                            removed_line->buffer,
+                            removed_line->gap_start);
 
+    prev_line->insert_range(prev_line_idx + (removed_line->gap_start - removed_line->buffer),
+                            removed_line->gap_end,
+                            removed_line->buffer + removed_line->capacity);
+
+#if 0
+    prev_line->reserve_gap(removed_line_size + 4);
+    for(auto i = 0_u64; i < removed_line_size; ++i) //  TODO: Insert range?
+        prev_line->insert(prev_line_idx++, removed_line->get(i));
+#endif
 
     // TODO: Free the memory allocted it the line, just removed.
+    free(lines[gap_start].buffer);
+    lines[gap_start].buffer = nullptr;
     gap_start--;
     return true;
 }
 
-umm text_buffer::size() const
+mm text_buffer::size() const
 {
     return capacity - gap_size();
 }
 
-umm text_buffer::gap_size() const
+mm text_buffer::gap_size() const
 {
     return gap_end - gap_start;
 }
 
-gap_buffer* text_buffer::get_line(umm line) const
+gap_buffer* text_buffer::get_line(mm line) const
 {
+    ASSERT(line >= 0);
     ASSERT(line < size());
 
     if (line < gap_start)
@@ -250,7 +259,7 @@ void buffer::DEBUG_print_state() const
 
 bool buffer_point::insert_character_at_point(u32 character)
 {
-    buffer_ptr->get_line(curr_line)->insert_at_point(curr_idx++, character);
+    buffer_ptr->get_line(curr_line)->insert(curr_idx++, character);
     last_line_idx = -1;
 
     // For now we assume that the inserting character cannot fail.
@@ -418,17 +427,17 @@ bool buffer_point::line_down()
         return false;
 }
 
-bool buffer_point::jump_up(u64 number_of_lines)
+bool buffer_point::jump_up(mm number_of_lines)
 {
     auto goal_idx = (last_line_idx == -1
         ? curr_idx
-        : (curr_idx > static_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
+        : (curr_idx > last_line_idx ? curr_idx : last_line_idx));
 
     if(curr_line == 0)
         return false;
     else
     {
-        curr_line = curr_line > number_of_lines ? curr_line - number_of_lines : 0;
+        curr_line = (curr_line > number_of_lines ? curr_line - number_of_lines : 0);
         first_line = curr_line;
         starting_from_top = true;
 
@@ -446,12 +455,12 @@ bool buffer_point::jump_up(u64 number_of_lines)
     }
 }
 
-bool buffer_point::jump_down(u64 number_of_lines)
+bool buffer_point::jump_down(mm number_of_lines)
 {
     auto last_line_index = buffer_ptr->size() - 1;
     auto goal_idx = (last_line_idx == -1
         ? curr_idx
-        : (curr_idx > static_cast<u64>(last_line_idx) ? curr_idx : last_line_idx));
+        : (curr_idx > static_cast<mm>(last_line_idx) ? curr_idx : last_line_idx));
 
     if(curr_line == last_line_index)
         return false;
@@ -543,7 +552,7 @@ read_full_file(char const* filename)
     fread(str, fsize, 1, f);
     fclose(f);
 
-    return std::make_pair(str, fsize);
+    return { str, fsize };
 }
 
 // Write to buffer starting from line'th line, and idx'th character.
@@ -559,12 +568,11 @@ write_to_buffer(text_buffer* buffer,
 
     while(curr != end)
     {
+        // TODO: Support more newlines.
         while(curr != end && *curr != static_cast<u32>('\n'))
             ++curr;
 
-        // TODO: Change this to insert_sequence or something in the gap_buffer.
-        for(;prev != curr; ++prev)
-            buffer->get_line(line)->insert_at_point(idx++, *prev);
+        buffer->get_line(line)->insert_range(idx++, prev, curr);
 
         if(curr != end) // Different than end means newline character.
         {
@@ -579,37 +587,37 @@ write_to_buffer(text_buffer* buffer,
             break;
     }
 
-    return std::make_pair(line, idx);
+    return { line, idx };
 }
 
 // TODO: Move to the file api.
-static inline void
-load_file_into_buffer_utf8(text_buffer* buffer, char const* file_path)
-{
-    constexpr i32 chunk_size = 1024;
-    u32 output_chunk[chunk_size];
-
-    LOG_INFO("Loading the file: %s", file_path);
-    auto[data_ptr, size] = read_full_file(file_path);
-
-    if (data_ptr)
+    static inline void
+    load_file_into_buffer_utf8(text_buffer* buffer, char const* file_path)
     {
-        mm insert_at_line = 0;
-        mm insert_at_idx = 0;
+        constexpr i32 chunk_size = 1024;
+        u32 output_chunk[chunk_size];
 
-        u8 const* src_curr = data_ptr;
+        LOG_INFO("Loading the file: %s", file_path);
+        auto[data_ptr, size] = read_full_file(file_path);
 
-        while(src_curr != data_ptr + size)
+        if (data_ptr)
         {
-            auto[src_reached, dest_reached] = utf8_to_utf32(src_curr,
-                data_ptr + size,
-                output_chunk,
-                output_chunk + chunk_size);
-            src_curr = src_reached;
+            mm insert_at_line = 0;
+            mm insert_at_idx = 0;
 
-            // This will split the lines, by searching for newline characters.
-            auto[res_line, res_idx] =
-                write_to_buffer(buffer, insert_at_line, insert_at_idx,
+            u8 const* src_curr = data_ptr;
+
+            while(src_curr != data_ptr + size)
+            {
+                auto[src_reached, dest_reached] = utf8_to_utf32(src_curr,
+                                                                data_ptr + size,
+                                                                output_chunk,
+                                                                output_chunk + chunk_size);
+                src_curr = src_reached;
+
+                // This will split the lines, by searching for newline characters.
+                auto[res_line, res_idx] =
+                    write_to_buffer(buffer, insert_at_line, insert_at_idx,
                     &(output_chunk[0]), dest_reached);
             insert_at_line = res_line;
             insert_at_idx = res_idx;
@@ -660,7 +668,7 @@ create_buffer_from_file(char const* file_path)
                 result->insert_newline(line_idx);
 
             for(auto i = 0_u64; i < line_size; ++i)
-                result->get_line(line_idx + 1)->insert_at_point(i, line[i]);
+                result->get_line(line_idx + 1)->insert(i, line[i]);
 
             line_idx++;
             line_size = 0;
@@ -726,12 +734,12 @@ save_buffer_utf8(text_buffer* buf, char const* file_path)
 
     strref refs[3];
     refs[2] = strref{ newline, newline + 1 };
-    for(umm i = 0; i < buf->size(); ++i)
+    for(mm i = 0; i < buf->size(); ++i)
     {
         buf->get_line(i)->to_str_refs(refs);
 
         // For the last line, we dont append a newline character.
-        for(int j = 0; j < (i + 1 == buf->size() ? 2 : 3); ++j)
+        for(i32 j = 0; j < (i + 1 == buf->size() ? 2 : 3); ++j)
         {
             for(auto c : refs[j])
             {

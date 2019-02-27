@@ -50,7 +50,7 @@ struct strref
         last = p;
     }
 
-    umm size() const { return last - first; }
+    mm size() const { return last - first; }
     bool empty() const { return first == last; }
 
     u32& operator[](mm pos) { return *(first + pos); }
