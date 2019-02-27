@@ -350,6 +350,9 @@ static void move_gap_bufffer(gap_buffer* from, gap_buffer* to)
     auto gap_start_offset = from->gap_start - from->buffer;
     auto gap_end_offset = from->gap_end - from->buffer;
 
+    if(to->buffer)
+        free(to->buffer);
+
     to->capacity = from->capacity;
     to->buffer = from->buffer;
     to->gap_start = (to->buffer + gap_start_offset);

@@ -13,6 +13,8 @@ void text_buffer::initialize()
     // prev_chunks_size = 0;
     lines = static_cast<gap_buffer*>(
         malloc(sizeof(gap_buffer) * NUMBER_OF_LINES_IN_BUFFER));
+    memset(lines, 0, sizeof(gap_buffer) * NUMBER_OF_LINES_IN_BUFFER);
+
     gap_start = 1;
     gap_end = NUMBER_OF_LINES_IN_BUFFER;
     capacity = NUMBER_OF_LINES_IN_BUFFER;
@@ -99,7 +101,9 @@ bool text_buffer::insert_newline(mm line, mm point)
     move_gap_to_point(line + 1);
     gap_start++;
 
-    // TODO(LEAK): This is a leak! Make sure it is fixed.
+    // TODO: Possibly reuse the alloced memory.
+    if(lines[line + 1].buffer)
+        free(lines[line + 1].buffer);
     lines[line + 1].initialize();
 
     auto edited_line = get_line(line);
@@ -115,7 +119,7 @@ bool text_buffer::delete_line(mm line)
 {
     ASSERT(line > 0);
     ASSERT(line < size());
-    move_gap_to_point(line + 1); // TODO(NEXT): What about it!
+    move_gap_to_point(line + 1);
 
     gap_buffer* prev_line = get_line(line - 1);
     gap_buffer* removed_line = get_line(line);
