@@ -12,12 +12,12 @@ void text_buffer::initialize()
 {
     // prev_chunks_size = 0;
     lines = static_cast<gap_buffer*>(
-        malloc(sizeof(gap_buffer) * NUMBER_OF_LINES_IN_BUFFER));
-    memset(lines, 0, sizeof(gap_buffer) * NUMBER_OF_LINES_IN_BUFFER);
+        malloc(sizeof(gap_buffer) * TEXT_BUF_INITIAL_CAPACITY));
+    memset(lines, 0, sizeof(gap_buffer) * TEXT_BUF_INITIAL_CAPACITY);
 
     gap_start = 1;
-    gap_end = NUMBER_OF_LINES_IN_BUFFER;
-    capacity = NUMBER_OF_LINES_IN_BUFFER;
+    gap_end = TEXT_BUF_INITIAL_CAPACITY;
+    capacity = TEXT_BUF_INITIAL_CAPACITY;
 
     lines[0].initialize();
 }
@@ -91,11 +91,19 @@ bool text_buffer::insert_newline(mm line, mm point)
     // TODO: Encapsulate realloc.
     if(gap_size() <= 2) // TODO: Make constants.
     {
+        mm old_capacity = capacity;
+        (void(old_capacity));
+
         move_gap_to_buffer_end();
         capacity *= 2;
 
         // TODO: Fix realloc. Check and abort on leaks.
         lines = static_cast<gap_buffer*>(realloc(lines, sizeof(gap_buffer) * capacity));
+
+        LOG_WARN("Buffer realloced: %ld -> %ld", old_capacity, capacity);
+        for(mm i = gap_end; i < capacity; ++i)
+            lines[i] = { 0, nullptr, nullptr, nullptr };
+
         gap_end = capacity;
     }
     move_gap_to_point(line + 1);
@@ -110,7 +118,7 @@ bool text_buffer::insert_newline(mm line, mm point)
     auto created_line = get_line(line + 1);
     for(auto i = point; i < edited_line->size(); ++i)
         created_line->insert(i - point, edited_line->get(i));
-    edited_line->delete_to_the_end_of_line(point);
+    edited_line->del_to_end(point);
 
     return true;
 }
@@ -286,7 +294,7 @@ bool buffer_point::remove_character_backward()
 {
     if(curr_idx > 0)
     {
-        buffer_ptr->get_line(curr_line)->delete_char_backward(curr_idx--);
+        buffer_ptr->get_line(curr_line)->del_backward(curr_idx--);
         last_line_idx = -1;
 
         return true;
@@ -310,7 +318,7 @@ bool buffer_point::remove_character_forward()
 {
     if(curr_idx < buffer_ptr->get_line(curr_line)->size())
     {
-        buffer_ptr->get_line(curr_line)->delete_char_forward(curr_idx);
+        buffer_ptr->get_line(curr_line)->del_forward(curr_idx);
         last_line_idx = -1;
 
         return true;

@@ -70,20 +70,8 @@ void gap_buffer::reserve_gap(mm n)
         mm new_gap_size = n - gap_size();
         mm new_size = capacity + new_gap_size;
 
-#if 0
-        // TODO: realloc.
-        auto new_ptr = static_cast<u32*>(malloc(sizeof(u32) * new_size));
-        memmove(new_ptr, buffer, sizeof(u32) * capacity);
-        free(buffer);
-
-        if (new_ptr)
-            buffer = new_ptr;
-        else
-            PANIC("Realloc has failed.");
-#else
+        // TODO: Save realloc.
         buffer = static_cast<u32*>(realloc(buffer, sizeof(u32) * new_size));
-#endif
-
         capacity = new_size;
         gap_start = buffer + gap_start_idx;
         gap_end = buffer + capacity;
@@ -144,7 +132,7 @@ void gap_buffer::replace_at_point(mm point, u32 character)
     *ptr = character;
 }
 
-bool gap_buffer::delete_char_backward(mm point)
+bool gap_buffer::del_backward(mm point)
 {
     ASSERT(0 < point && point <= size());
 
@@ -165,18 +153,18 @@ bool gap_buffer::delete_char_backward(mm point)
         return false;
 }
 
-bool gap_buffer::delete_char_forward(mm point)
+bool gap_buffer::del_forward(mm point)
 {
     ASSERT(point >= 0);
 
     if(point == size())
         return false;
 
-    delete_char_backward(point + 1);
+    del_backward(point + 1);
     return true;
 }
 
-bool gap_buffer::delete_to_the_end_of_line(mm point)
+bool gap_buffer::del_to_end(mm point)
 {
     ASSERT(point >= 0);
     ASSERT(point <= size());

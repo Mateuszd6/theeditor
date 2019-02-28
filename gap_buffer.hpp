@@ -67,16 +67,16 @@ struct gap_buffer
 
     /// Delete the character currently on the given point. Will move the gap to
     /// the pointed location if necesarry. Can shrink buffer memory.
-    bool delete_char_backward(mm point);
+    bool del_backward(mm point);
 
     /// Delete the character currently on the given point. Should give the same
     /// result as moving forward one character and removing character backward.
     /// Will move the gap to the pointed location if necesarry. Can shrink
     /// buffer memory.
-    bool delete_char_forward(mm point);
+    bool del_forward(mm point);
 
     /// Efficiently clears the text to the end of the line by moving a gap.
-    bool delete_to_the_end_of_line(mm point);
+    bool del_to_end(mm point);
 
     /// Returns the number of characters stored in the buffer. Assertion: size()
     /// + gap_size() == capacity for every vaild state of gap buffer.
