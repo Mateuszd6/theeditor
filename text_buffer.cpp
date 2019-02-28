@@ -747,9 +747,12 @@ save_buffer_utf8(text_buffer* buf, char const* file_path)
 
     strref refs[3];
     refs[2] = strref{ newline, newline + 1 };
+
     for(mm i = 0; i < buf->size(); ++i)
     {
-        buf->get_line(i)->to_str_refs(refs);
+        auto line_as_refs = buf->get_line(i)->to_str_refs_();
+        refs[0] = line_as_refs[0];
+        refs[1] = line_as_refs[1];
 
         // For the last line, we dont append a newline character.
         for(i32 j = 0; j < (i + 1 == buf->size() ? 2 : 3); ++j)

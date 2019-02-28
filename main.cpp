@@ -566,19 +566,18 @@ main()
         i32 random_number = line_size == 0 ? 0 : std::random_device()() % line_size;
         g::buf_pt.buffer_ptr
             ->get_line(i)
-            ->insert_at_point(random_number,
-                              static_cast<u32>('a' + std::random_device()() % 10));
+            ->insert(random_number,
+                     static_cast<u32>('a' + std::random_device()() % 10));
 
         g::buf_pt.buffer_ptr
             ->get_line(i)
-            ->delete_char_forward(random_number);
+            ->del_forward(random_number);
     }
 
     save_buffer(g::buf_pt.buffer_ptr, "./saved_test", encoding::utf8);
     system("diff -s ./test ./saved_test");
     return 0;
 #endif
-
 
     g::buf_pt = create_buffer_point(g::buf_pt.buffer_ptr);
 
@@ -644,12 +643,11 @@ main()
                     auto basex = 18;
                     auto basey = 16 + (k + 1) * g::font_height - g::font_descent;
 
-                    strref refs[2];
-                    g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs(refs);
+                    auto refs = g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs_();
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
                                       16, static_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
-                                      refs);
+                                      refs.data());
                 }
             else
                 for(auto k = no_lines - 1; k >= 0; --k)
@@ -664,12 +662,11 @@ main()
                     auto basey = 16 - 1 + win.height - 32 + 1 -
                         ((no_lines - 1) - k) * g::font_height - g::font_descent;
 
-                    strref refs[2];
-                    g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs(refs);
+                    auto refs = g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs_();
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
                                       16, static_cast<i16>(win.width - 32 + 1) - 1,
                                       basex, basey,
-                                      refs);
+                                      refs.data());
                 }
 
             win.clear_clamp_rect();

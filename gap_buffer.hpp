@@ -1,9 +1,10 @@
 // TODO:
 //       * Don't touch the gap, when buffer is allocated.
-//       * fancy up the api for inserting sequences, etc.
 
 #ifndef GAP_BUFFER_HPP
 #define GAP_BUFFER_HPP
+
+#include <array>
 
 #include "strref.hpp"
 
@@ -93,13 +94,9 @@ struct gap_buffer
     /// the buffer.
     u32 operator[](mm idx) const;
 
-    /// Returns the c_str representation of the line. Allocates the memory for
-    /// the string. The caller is repsonsible for freeing this memory.
-    char* to_c_str() const;
-
     /// Returns two strrefs representing the stored string. Refs must point to
     /// the array of size at least 2.
-    void to_str_refs(strref* refs) const;
+    std::array<strref, 2> to_str_refs_() const;
 
     /// Pretty prints the structure state to console.
     void DEBUG_print_state() const;

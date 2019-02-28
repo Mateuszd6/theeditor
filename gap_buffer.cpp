@@ -205,58 +205,15 @@ u32 gap_buffer::operator [](mm idx) const
     return get(idx);
 }
 
-#if 0
-char* gap_buffer::to_c_str() const
+std::array<strref, 2> gap_buffer::to_str_refs_() const
 {
-#ifdef GAP_BUF_SSO
-    if(sso_enabled())
-    {
-        auto result = static_cast<char*>(malloc(sizeof(u32) * GAP_BUF_SSO_CAP));
-        memmove(result, data, GAP_BUF_SSO_GAP_START);
-        memmove(result + GAP_BUF_SSO_GAP_START,
-               data + GAP_BUF_SSO_GAP_END,
-               GAP_BUF_SSO_CAP - GAP_BUF_SSO_GAP_END);
+    std::array<strref, 2> retval{ };
+    retval[0] = strref { const_cast<u32*>(buffer),
+                         const_cast<u32*>(gap_start) };
+    retval[1] = strref{ const_cast<u32*>(gap_end),
+                        const_cast<u32*>(buffer + capacity) };
 
-        result[GAP_BUF_SSO_GAP_START + (GAP_BUF_SSO_CAP - GAP_BUF_SSO_GAP_END)] = 0;
-        return result;
-    }
-    else
-    {
-#endif
-        // TODO: Alloc function.
-        auto result = static_cast<char*>(std::malloc(sizeof(u32) * (capacity + 1)));
-        auto resutl_idx = 0;
-        auto in_gap = false;
-        result[0] = '\0';
-
-        for (auto i = 0_u64; i < capacity; ++i)
-        {
-            if (buffer + i == gap_start)
-                in_gap = true;
-
-            if (buffer + i == gap_end)
-                in_gap = false;
-
-            if (!in_gap)
-            {
-                result[resutl_idx++] = *(buffer + i);
-                result[resutl_idx] = '\0';
-            }
-        }
-
-        return result;
-#ifdef GAP_BUF_SSO
-    }
-#endif
-}
-#endif
-
-void gap_buffer::to_str_refs(strref* refs) const
-{
-    refs[0] = strref{ const_cast<u32*>(buffer),
-                      const_cast<u32*>(gap_start) };
-    refs[1] = strref{ const_cast<u32*>(gap_end),
-                      const_cast<u32*>(buffer + capacity) };
+    return retval;
 }
 
 void gap_buffer::DEBUG_print_state() const
