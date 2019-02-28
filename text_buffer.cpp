@@ -569,7 +569,7 @@ read_full_file(char const* filename)
 
 // Write to buffer starting from line'th line, and idx'th character.
 // Returns the pair (line + idx) at which the inserting has ended.
-static inline std::pair<mm, mm>
+static std::pair<mm, mm>
 write_to_buffer(text_buffer* buffer,
     mm line, mm idx,
     u32 const* begin, u32 const* end)
@@ -584,7 +584,8 @@ write_to_buffer(text_buffer* buffer,
         while(curr != end && *curr != static_cast<u32>('\n'))
             ++curr;
 
-        buffer->get_line(line)->insert_range(idx++, prev, curr);
+        buffer->get_line(line)->insert_range(idx, prev, curr);
+        idx += curr - prev;
 
         if(curr != end) // Different than end means newline character.
         {
@@ -603,34 +604,34 @@ write_to_buffer(text_buffer* buffer,
 }
 
 // TODO: Move to the file api.
-    static inline void
-    load_file_into_buffer_utf8(text_buffer* buffer, char const* file_path)
+static inline void
+load_file_into_buffer_utf8(text_buffer* buffer, char const* file_path)
+{
+    constexpr i32 chunk_size = 1024;
+    u32 output_chunk[chunk_size];
+
+    LOG_INFO("Loading the file: %s", file_path);
+    auto[data_ptr, size] = read_full_file(file_path);
+
+    if (data_ptr)
     {
-        constexpr i32 chunk_size = 1024;
-        u32 output_chunk[chunk_size];
+        mm insert_at_line = 0;
+        mm insert_at_idx = 0;
 
-        LOG_INFO("Loading the file: %s", file_path);
-        auto[data_ptr, size] = read_full_file(file_path);
+        u8 const* src_curr = data_ptr;
 
-        if (data_ptr)
+        while(src_curr != data_ptr + size)
         {
-            mm insert_at_line = 0;
-            mm insert_at_idx = 0;
+            auto[src_reached, dest_reached] = utf8_to_utf32(src_curr,
+                                                            data_ptr + size,
+                                                            output_chunk,
+                                                            output_chunk + chunk_size);
+            src_curr = src_reached;
 
-            u8 const* src_curr = data_ptr;
-
-            while(src_curr != data_ptr + size)
-            {
-                auto[src_reached, dest_reached] = utf8_to_utf32(src_curr,
-                                                                data_ptr + size,
-                                                                output_chunk,
-                                                                output_chunk + chunk_size);
-                src_curr = src_reached;
-
-                // This will split the lines, by searching for newline characters.
-                auto[res_line, res_idx] =
-                    write_to_buffer(buffer, insert_at_line, insert_at_idx,
-                    &(output_chunk[0]), dest_reached);
+            // This will split the lines, by searching for newline characters.
+            auto[res_line, res_idx] =
+                write_to_buffer(buffer, insert_at_line, insert_at_idx,
+                                &(output_chunk[0]), dest_reached);
             insert_at_line = res_line;
             insert_at_idx = res_idx;
         }
@@ -643,7 +644,7 @@ write_to_buffer(text_buffer* buffer,
         PANIC("Could not read file, becuase it does not exists!");
     }
 }
-}
+} // namespace detail
 
 // TODO: Non-stupid file reader. Chunk by chunk. Do after unicode is implemented
 //       in the gap buffer.
@@ -759,6 +760,11 @@ save_buffer_utf8(text_buffer* buf, char const* file_path)
 
                 if(input_idx == input_chunk + chunk_size)
                 {
+#if 0
+                    fprintf(stdout, "Stopped at:\n");
+                    buf->get_line(i)->DEBUG_print_state();
+#endif
+
                     write_utf32_as_utf8_to_file(input_chunk, input_chunk + chunk_size);
                     input_idx = &(input_chunk[0]);
                 }
