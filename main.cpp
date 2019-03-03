@@ -80,7 +80,7 @@ handle_key(key pressed_key)
         {
             u32 buffer[1024];
 
-            // TODO: Change so that more pleasen api is called here!
+            // TODO: Change so that nicer api is called here!
             g::tmp_window_hndl->load_clipboard_contents();
             if (g::tmp_window_hndl->clip_text)
             {
@@ -98,16 +98,8 @@ handle_key(key pressed_key)
                 {
                     ASSERT(g::buf_pt.point_is_valid());
 
-                    if(*p == static_cast<u32>('\n'))
-                    {
-                        bool line_added = g::buf_pt.insert_newline_at_point();
-                        ASSERT(line_added);
-                    }
-                    else
-                    {
-                        bool inserted = g::buf_pt.insert_character_at_point(*p);
-                        ASSERT(inserted);
-                    }
+                    bool added = g::buf_pt.insert(*p);
+                    ASSERT(added);
                 }
             }
             else
@@ -209,15 +201,18 @@ handle_key(key pressed_key)
 
                 for(auto i = 0; i < 4; ++i)
                 {
-                    g::buf_pt.insert_character_at_point(' ');
+                    g::buf_pt.insert(static_cast<u32>(' '));
                 }
             } break;
 
             case keycode_values::Return:
             {
                 u32 newline_ch = static_cast<u32>('\n');
-                g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert, &newline_ch, 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
-                g::buf_pt.insert_newline_at_point();
+                g::buf_pt.buffer_ptr
+                    ->undo_buf
+                    .add_undo(undo_type::insert, &newline_ch, 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
+
+                g::buf_pt.insert(newline_ch);
             } break;
 
             case keycode_values::Up:
@@ -266,9 +261,12 @@ handle_key(key pressed_key)
         g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
-        g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert, &(pressed_key.codept), 1,
-                 g::buf_pt.curr_line, g::buf_pt.curr_idx);
-        g::buf_pt.insert_character_at_point(pressed_key.codept);
+        g::buf_pt.buffer_ptr
+            ->undo_buf
+            .add_undo(undo_type::insert, &(pressed_key.codept), 1,
+                      g::buf_pt.curr_line, g::buf_pt.curr_idx);
+
+        g::buf_pt.insert(pressed_key.codept);
     }
 }
 

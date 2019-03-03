@@ -71,41 +71,74 @@ void text_buffer::move_gap_to_buffer_end()
     }
 }
 
-// TODO: Dont use it. Use: get_line()->insert....
-bool text_buffer::insert_character(mm line, mm point, u32 character)
+void text_buffer::grow_gap()
 {
+    ASSERT(capacity > 0);
+    mm old_capacity = capacity;
+
+    move_gap_to_buffer_end();
+    capacity *= 2;
+
+    // TODO: Fix realloc. Check and abort on leaks.
+    lines = static_cast<gap_buffer*>(realloc(lines, sizeof(gap_buffer) * capacity));
+
+    // We need to default our new, uninitialized part of memory.
+    for(mm i = gap_end; i < capacity; ++i)
+        lines[i] = { 0, nullptr, nullptr, nullptr };
+
+    gap_end = capacity;
+
+    LOG_WARN("Buffer realloced: %ld -> %ld", old_capacity, capacity);
+}
+
+std::tuple<bool, mm, mm>
+text_buffer::insert_character(mm line, mm point, u32 character)
+{
+    // This should not be used to insert the newline. User should call
+    // insert_newline instead.
+    ASSERT(character != static_cast<u32>('\n'));
     ASSERT(line >= 0);
     ASSERT(point >= 0);
 
-    get_line(line)->insert(point, character);
-    return true;
+    LOG_DEBUG("Inserting character: %c",
+              character < 255 ? static_cast<u8>(character) : '?');
+
+    get_line(line)->insert(point++, character);
+    return { true, line, point } ;
 }
 
-bool text_buffer::insert_newline(mm line, mm point)
+std::tuple<bool, mm, mm>
+text_buffer::insert_range(mm line, mm point, u32* begin, u32* end)
 {
     ASSERT(line >= 0);
     ASSERT(line < size());
     ASSERT(point >= 0);
     ASSERT(point <= get_line(line)->size());
 
-    // TODO: Encapsulate realloc.
+    LOG_DEBUG("Inserting %ld characters", end - begin);
+
+    for(u32* i = begin; i != end; ++i)
+        ASSERT(*i != static_cast<u32>('\n'));
+
+    get_line(line)->insert_range(point, begin, end);
+    return { true, line, point + (end - begin) };
+}
+
+std::tuple<bool, mm, mm>
+text_buffer::insert_newline(mm line, mm point)
+{
+    ASSERT(line >= 0);
+    ASSERT(line < size());
+    ASSERT(point >= 0);
+    ASSERT(point <= get_line(line)->size());
+
+    LOG_DEBUG("Inserting newline");
+
     if(gap_size() <= 2) // TODO: Make constants.
     {
-        mm old_capacity = capacity;
-        (void(old_capacity));
-
-        move_gap_to_buffer_end();
-        capacity *= 2;
-
-        // TODO: Fix realloc. Check and abort on leaks.
-        lines = static_cast<gap_buffer*>(realloc(lines, sizeof(gap_buffer) * capacity));
-
-        LOG_WARN("Buffer realloced: %ld -> %ld", old_capacity, capacity);
-        for(mm i = gap_end; i < capacity; ++i)
-            lines[i] = { 0, nullptr, nullptr, nullptr };
-
-        gap_end = capacity;
+        grow_gap();
     }
+
     move_gap_to_point(line + 1);
     gap_start++;
 
@@ -117,13 +150,17 @@ bool text_buffer::insert_newline(mm line, mm point)
     auto edited_line = get_line(line);
     auto created_line = get_line(line + 1);
     for(auto i = point; i < edited_line->size(); ++i)
+    {
+        // TODO: Don't insert characters one-by-one here.
         created_line->insert(i - point, edited_line->get(i));
+    }
     edited_line->del_to_end(point);
 
-    return true;
+    return { true, line + 1, 0 };
 }
 
-bool text_buffer::delete_line(mm line)
+void
+text_buffer::delete_line(mm line)
 {
     ASSERT(line > 0);
     ASSERT(line < size());
@@ -135,7 +172,6 @@ bool text_buffer::delete_line(mm line)
     // The index where removed line characters will be inserted.
     mm prev_line_idx = prev_line->size();
 
-    // TODO: Don't use the constant. Think about optimal value here!
     prev_line->insert_range(prev_line_idx,
                             removed_line->buffer,
                             removed_line->gap_start);
@@ -144,17 +180,62 @@ bool text_buffer::delete_line(mm line)
                             removed_line->gap_end,
                             removed_line->buffer + removed_line->capacity);
 
-#if 0
-    prev_line->reserve_gap(removed_line_size + 4);
-    for(auto i = 0_u64; i < removed_line_size; ++i) //  TODO: Insert range?
-        prev_line->insert(prev_line_idx++, removed_line->get(i));
-#endif
-
-    // TODO: Free the memory allocted it the line, just removed.
     free(lines[gap_start].buffer);
     lines[gap_start].buffer = nullptr;
     gap_start--;
-    return true;
+}
+
+std::tuple<bool, mm, mm>
+text_buffer::del_forward(mm line, mm point)
+{
+    if(point < get_line(line)->size())
+    {
+        LOG_DEBUG("Deleting character forward");
+
+        get_line(line)->del_forward(point);
+        return { true, line, point };
+    }
+    else if(line < size() - 1)
+    {
+        LOG_DEBUG("Deleting newline forward");
+
+        delete_line(line + 1);
+        return { true, line, point };
+    }
+    else
+    {
+        LOG_WARN("Cannot delete forward");
+
+        return { true, line, point };
+    }
+}
+
+std::tuple<bool, mm, mm>
+text_buffer::del_backward(mm line, mm point)
+{
+    if(point > 0)
+    {
+        LOG_DEBUG("Deleting character backward");
+
+        get_line(line)->del_backward(point--);
+        return { true, line, point };
+    }
+    else if(line > 0)
+    {
+        LOG_DEBUG("Deleting newline backward");
+
+        mm prev_line_size = get_line(line - 1)->size();
+        delete_line(line);
+        line--;
+        point = prev_line_size;
+        return { true, line, point };
+    }
+    else
+    {
+        LOG_WARN("Cannot delete backward");
+
+        return { false, line, point };
+    }
 }
 
 mm text_buffer::size() const
@@ -179,6 +260,7 @@ gap_buffer* text_buffer::get_line(mm line) const
 }
 
 // TODO: DO NOT MODIFY GLOBAL STATE. THIS IS NOT FINISHED YET!
+// TODO: Probobly get rid of this, at least in this form.
 void text_buffer::apply_insert(u32* data_head, mm len, u64 line, u64 index)
 {
     // TODO: This should reset last_line_idx. Make a safe ctor.
@@ -189,20 +271,13 @@ void text_buffer::apply_insert(u32* data_head, mm len, u64 line, u64 index)
     {
         ASSERT(g::buf_pt.point_is_valid());
 
-        if(data_head[i] == static_cast<u32>('\n'))
-        {
-            bool line_added = g::buf_pt.insert_newline_at_point();
-            ASSERT(line_added);
-        }
-        else
-        {
-            bool inserted = g::buf_pt.insert_character_at_point(data_head[i]);
-            ASSERT(inserted);
-        }
+        bool added = g::buf_pt.insert(data_head[i]);
+        ASSERT(added);
     }
 }
 
 // TODO: DO NOT MODIFY GLOBAL STATE. THIS IS NOT FINISHED YET!
+// TODO: Probobly get rid of this, at least in this form.
 void text_buffer::apply_remove(u32* data_head, mm len, u64 line, u64 index)
 {
     // TODO: This should reset last_line_idx. Make a safe ctor.
@@ -213,7 +288,7 @@ void text_buffer::apply_remove(u32* data_head, mm len, u64 line, u64 index)
     {
         ASSERT(g::buf_pt.point_is_valid());
 
-        if(data_head[i] == '\n')
+        if(data_head[i] == static_cast<u32>('\n'))
         {
             // Assert that we are at the end of the line.
             ASSERT(g::buf_pt.buffer_ptr
@@ -269,6 +344,7 @@ void buffer::DEBUG_print_state() const
 }
 #endif
 
+#if 0
 bool buffer_point::insert_character_at_point(u32 character)
 {
     buffer_ptr->get_line(curr_line)->insert(curr_idx++, character);
@@ -289,56 +365,75 @@ bool buffer_point::insert_newline_at_point()
     // For now we assume that the inserting character cannot fail.
     return true;
 }
+#else
+
+bool
+buffer_point::insert(u32 character)
+{
+    // TODO: Encapsulate.
+    last_line_idx = -1;
+
+    ASSERT(character != 0);
+    if (character == static_cast<u32>('\n'))
+    {
+        auto[succeeded, line, point] = buffer_ptr->insert_newline(curr_line, curr_idx);
+        if (succeeded)
+        {
+            curr_line = line;
+            curr_idx = point;
+        }
+
+        ASSERT(point_is_valid());
+        return succeeded;
+    }
+    else
+    {
+        auto[succeeded, line, point] = buffer_ptr->insert_character(curr_line, curr_idx, character);
+        if (succeeded)
+        {
+            curr_line = line;
+            curr_idx = point;
+        }
+
+        ASSERT(point_is_valid());
+        return succeeded;
+    }
+}
+
+#endif
 
 bool buffer_point::remove_character_backward()
 {
-    if(curr_idx > 0)
+    // TODO: Encapsulate.
+    last_line_idx = -1;
+
+    auto[succeeded, line, point] = buffer_ptr->del_backward(curr_line, curr_idx);
+
+    if(succeeded)
     {
-        buffer_ptr->get_line(curr_line)->del_backward(curr_idx--);
-        last_line_idx = -1;
-
-        return true;
+        curr_line = line;
+        curr_idx = point;
     }
-    else if(curr_line > 0)
-    {
-        auto line_size = buffer_ptr->get_line(curr_line - 1)->size();
 
-        buffer_ptr->delete_line(curr_line);
-        curr_line--;
-        curr_idx = line_size;
-        last_line_idx = -1;
-
-        return true;
-    }
-    else
-        return false;
+    ASSERT(point_is_valid()); // We must still be in valid pos.
+    return succeeded;
 }
 
 bool buffer_point::remove_character_forward()
 {
-    if(curr_idx < buffer_ptr->get_line(curr_line)->size())
+    // TODO: Encapsulate.
+    last_line_idx = -1;
+
+    auto[succeeded, line, point] = buffer_ptr->del_forward(curr_line, curr_idx);
+
+    if(succeeded)
     {
-        buffer_ptr->get_line(curr_line)->del_forward(curr_idx);
-        last_line_idx = -1;
-
-        return true;
+        curr_line = line;
+        curr_idx = point;
     }
-    else if(curr_line < buffer_ptr->size() - 1)
-    {
-        curr_line++;
 
-        // TODO(Cleaup): This is copypaste.
-        auto line_size = buffer_ptr->get_line(curr_line - 1)->size();
-
-        buffer_ptr->delete_line(curr_line);
-        curr_line--;
-        curr_idx = line_size;
-        last_line_idx = -1;
-
-        return true;
-    }
-    else
-        return false;
+    ASSERT(point_is_valid()); // We must still be in valid pos.
+    return succeeded;
 }
 
 bool buffer_point::character_right()
@@ -571,8 +666,8 @@ read_full_file(char const* filename)
 // Returns the pair (line + idx) at which the inserting has ended.
 static std::pair<mm, mm>
 write_to_buffer(text_buffer* buffer,
-    mm line, mm idx,
-    u32 const* begin, u32 const* end)
+                mm line, mm idx,
+                u32 const* begin, u32 const* end)
 {
     // TODO: Possible different newline lineendings.
     u32 const* curr = begin;
@@ -652,66 +747,10 @@ static text_buffer*
 create_buffer_from_file(char const* file_path)
 {
     auto result = g::buffers + g::number_of_buffers++;
+
     result->initialize();
-
-#if 0
-    auto file = fopen(file_path, "r");
-    auto first_line_inserted = false;
-    auto line_idx = -1_i64;
-    auto line_capacity = 128_u64;
-    auto line_size = 0_u64;
-    auto line = static_cast<i8*>(malloc(sizeof(i8) * line_capacity));
-
-    line[0] = 0_u8;
-    auto c = EOF;
-    do
-    {
-        c = fgetc(file);
-        if(c == EOF && line_size == 0)
-            break;
-
-        if(c == '\n' || c == EOF)
-        {
-            // TODO: Im not sure if it is correct. Hope it fixed a bug with
-            // adding an empty line after loading the buffer.
-
-            if(!first_line_inserted)
-                first_line_inserted = true;
-            else
-                result->insert_newline(line_idx);
-
-            for(auto i = 0_u64; i < line_size; ++i)
-                result->get_line(line_idx + 1)->insert(i, line[i]);
-
-            line_idx++;
-            line_size = 0;
-            continue;
-        }
-
-        if(c == EOF)
-            break;
-
-        if (line_size + 1 >= line_capacity)
-        {
-            line_capacity *= 2;
-            // TODO: Fix common realloc mistake!
-            line = static_cast<i8*>(realloc(line, sizeof(i8) * line_capacity));
-            ASSERT(line);
-        }
-
-        line[line_size++] = static_cast<u8>(c);
-    }
-    while(c != EOF);
-
-    // may check feof here to make a difference between eof and io failure
-    // -- network timeout for instance
-    fclose(file);
-    free(line);
-#else
     detail::load_file_into_buffer_utf8(result, file_path);
-#endif
 
-    LOG_DEBUG("DONE");
     return result;
 }
 

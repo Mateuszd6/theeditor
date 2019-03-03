@@ -21,15 +21,30 @@ struct text_buffer
     void move_gap_to_point(mm point);
     void move_gap_to_buffer_end();
 
-    bool insert_character(mm line, mm point, u32 character);
-    bool insert_newline(mm line, mm point);
+    void grow_gap();
 
-    bool delete_line(mm line);
+    // Character must not be '\n'. Use insert_newline to do it.
+    std::tuple<bool, mm, mm> insert_character(mm line, mm point, u32 character);
+
+    // Should be the same as calling end - begin times insert_charater, but
+    // otpimized. The range cannot have '\n' characters in it!!
+    std::tuple<bool, mm, mm> insert_range(mm line, mm point, u32* begin, u32* end);
+
+    // Insert newline character at given point.
+    std::tuple<bool, mm, mm> insert_newline(mm line, mm point);
+
+    // All contents of the current line goes to the previous line. Current line
+    // is removed. TODO: This is private API.
+    void delete_line(mm line);
+
+    std::tuple<bool, mm, mm> del_forward(mm line, mm point);
+    std::tuple<bool, mm, mm> del_backward(mm line, mm point);
 
     mm size() const;
     mm gap_size() const;
     gap_buffer* get_line(mm line) const;
 
+    // TODO: They are horrible.
     void apply_insert(u32* data, mm len, u64 line, u64 index);
     void apply_remove(u32* data, mm len, u64 line, u64 index);
 
@@ -53,12 +68,10 @@ struct buffer_point
     /// until the cursor is moved left / right, something is inserted etc.
     /// After moving to the larger one, this index is tried to be restored.
     /// This value is ignored when it is equal to -1.
-    i64 last_line_idx;
+    mm last_line_idx;
     bool starting_from_top;
 
-
-    bool insert_character_at_point(u32 character);
-    bool insert_newline_at_point();
+    bool insert(u32 character);
 
     bool remove_character_backward();
     bool remove_character_forward();
