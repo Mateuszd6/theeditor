@@ -49,7 +49,7 @@ handle_key(key pressed_key)
     {
         LOG_WARN("Shortcut: %s", shortcut_name->c_str());
 
-        // TODO: Checking the name makes no sense, but is temporary anyways.
+        // TODO: Checking the name makes no sense, but it is temporary anyways.
         if (*shortcut_name == "Undo")
         {
             g::buf_pt.buffer_ptr->undo_buf.undo();
@@ -117,101 +117,31 @@ handle_key(key pressed_key)
         {
             case keycode_values::Escape:
             {
+                LOG_INFO("Printing undo state: ");
                 g::buf_pt.buffer_ptr->undo_buf.DEBUG_print_state();
             } break;
 
-            // TODO: Undo and buffer pt logic must be merge.
             case keycode_values::BackSpace:
             {
-                if (g::buf_pt.curr_idx > 0)
-                {
-                    u32 removed_ch = (g::buf_pt
-                                      .buffer_ptr
-                                      ->get_line(g::buf_pt.curr_line)
-                                      ->get(g::buf_pt.curr_idx - 1));
-
-                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove, &removed_ch, 1,
-                             g::buf_pt.curr_line, g::buf_pt.curr_idx - 1);
-                    bool char_removed = g::buf_pt.remove_character_backward();
-                    ASSERT(char_removed);
-                }
-                else if (g::buf_pt.curr_line > 0)
-                {
-                    u32 removed_ch = static_cast<u32>('\n');
-
-                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove, &removed_ch, 1,
-                             g::buf_pt.curr_line - 1,
-                             g::buf_pt.buffer_ptr->get_line(g::buf_pt.curr_line - 1)->size());
-                    bool char_removed = g::buf_pt.remove_character_backward();
-                    ASSERT(char_removed);
-                }
-                else
-                {
-                    bool char_removed = g::buf_pt.remove_character_backward();
-                    ASSERT(!char_removed);
-                }
+                g::buf_pt.del_backward();
             } break;
 
             // TODO: Undo and buffer pt logic must be merge. Handle the copypaste.
             case keycode_values::Delete:
             {
-                if (g::buf_pt.curr_idx < (g::buf_pt.buffer_ptr
-                                          ->get_line(g::buf_pt.curr_line)
-                                          ->size()))
-                {
-                    u32 removed_ch = (g::buf_pt
-                                  .buffer_ptr
-                                  ->get_line(g::buf_pt.curr_line)
-                                  ->get(g::buf_pt.curr_idx));
-
-                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove_inplace,
-                             &removed_ch, 1,
-                             g::buf_pt.curr_line, g::buf_pt.curr_idx);
-                    bool char_removed = g::buf_pt.remove_character_forward();
-                    ASSERT(char_removed);
-                }
-                else if (g::buf_pt.curr_line < g::buf_pt.buffer_ptr->size() - 1)
-                {
-                    u32 removed_ch = static_cast<u32>('\n');
-
-                    g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::remove_inplace,
-                             &removed_ch, 1,
-                             g::buf_pt.curr_line, g::buf_pt.curr_idx);
-                    bool char_removed = g::buf_pt.remove_character_forward();
-                    ASSERT(char_removed);
-                }
-                else
-                {
-                    bool char_removed = g::buf_pt.remove_character_forward();
-                    ASSERT(!char_removed);
-                }
+                g::buf_pt.del_forward();
             } break;
 
             case keycode_values::Tab:
             {
-                u32 buffer[] = {
-                    static_cast<u32>(' '),
-                    static_cast<u32>(' '),
-                    static_cast<u32>(' '),
-                    static_cast<u32>(' ')
-                };
+                u32 buffer[] = { ' ', ' ', ' ', ' ', };
 
-                g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert, buffer, 4,
-                         g::buf_pt.curr_line, g::buf_pt.curr_idx);
-
-                for(auto i = 0; i < 4; ++i)
-                {
-                    g::buf_pt.insert(static_cast<u32>(' '));
-                }
+                g::buf_pt.insert(buffer, buffer + 4);
             } break;
 
             case keycode_values::Return:
             {
                 u32 newline_ch = static_cast<u32>('\n');
-                g::buf_pt.buffer_ptr
-                    ->undo_buf
-                    .add_undo(undo_type::insert, &newline_ch, 1, g::buf_pt.curr_line, g::buf_pt.curr_idx);
-
                 g::buf_pt.insert(newline_ch);
             } break;
 
@@ -261,11 +191,6 @@ handle_key(key pressed_key)
         g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
-        g::buf_pt.buffer_ptr
-            ->undo_buf
-            .add_undo(undo_type::insert, &(pressed_key.codept), 1,
-                      g::buf_pt.curr_line, g::buf_pt.curr_idx);
-
         g::buf_pt.insert(pressed_key.codept);
     }
 }

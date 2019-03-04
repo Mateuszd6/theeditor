@@ -23,6 +23,25 @@ struct text_buffer
 
     void grow_gap();
 
+    // *_impl fucntions do the same as fucntions without the suffix, but does
+    // *not record undo state. Thus should only be used in the internal
+    // *API. Regular fucntions call these, and then if it succeeded, store info
+    // *about the operation in the undo buffer.
+    std::tuple<bool, mm, mm> insert_character_impl(mm line, mm point, u32 character);
+    std::tuple<bool, mm, mm> insert_range_impl(mm line, mm point, u32* begin, u32* end);
+    std::tuple<bool, mm, mm> insert_newline_impl(mm line, mm point);
+
+    // These fucntions are called by del_forward/del_backward and return the
+    // deleted character. They assume very special scenarios so never call them.
+    u32 del_forward_char_impl(mm line, mm point);
+    u32 del_forward_newline_impl(mm line, mm point);
+    u32 del_backward_char_impl(mm line, mm point);
+    u32 del_backward_newline_impl(mm line, mm point);
+
+    // All contents of the current line goes to the previous line. Current line
+    // is removed.
+    void delete_line_impl(mm line);
+
     // Character must not be '\n'. Use insert_newline to do it.
     std::tuple<bool, mm, mm> insert_character(mm line, mm point, u32 character);
 
@@ -33,10 +52,6 @@ struct text_buffer
     // Insert newline character at given point.
     std::tuple<bool, mm, mm> insert_newline(mm line, mm point);
 
-    // All contents of the current line goes to the previous line. Current line
-    // is removed. TODO: This is private API.
-    void delete_line(mm line);
-
     std::tuple<bool, mm, mm> del_forward(mm line, mm point);
     std::tuple<bool, mm, mm> del_backward(mm line, mm point);
 
@@ -45,12 +60,13 @@ struct text_buffer
     gap_buffer* get_line(mm line) const;
 
     // TODO: They are horrible.
-    void apply_insert(u32* data, mm len, u64 line, u64 index);
-    void apply_remove(u32* data, mm len, u64 line, u64 index);
+    std::tuple<mm, mm> apply_insert(u32* data, mm len, mm line, mm index);
+    std::tuple<mm, mm> apply_remove(u32* data, mm len, mm line, mm index);
 
     void DEBUG_print_state() const;
 };
 
+// TODO: Error code on fail.
 static text_buffer* create_buffer_from_file(char const* file_path);
 
 // TODO: Error code on fail.
@@ -72,9 +88,10 @@ struct buffer_point
     bool starting_from_top;
 
     bool insert(u32 character);
+    bool insert(u32* begin, u32* end);
 
-    bool remove_character_backward();
-    bool remove_character_forward();
+    bool del_backward();
+    bool del_forward();
 
     bool character_right();
     bool character_left();

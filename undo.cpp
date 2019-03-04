@@ -45,8 +45,7 @@ undo_buffer::undo()
     u8* head = redo_head;
 
     mm len = *(reinterpret_cast<mm*>(head - sizeof(mm)));
-    head -= ((len % 2 == 1 ? len + 1 : len) * sizeof(u32)
-             + sizeof(mm) + sizeof(undo_metadata));
+    head -= ((len % 2 == 1 ? len + 1 : len) * sizeof(u32) + sizeof(mm) + sizeof(undo_metadata));
     u32* data_head = reinterpret_cast<u32*>(head + sizeof(undo_metadata));
     undo_metadata* mdata = reinterpret_cast<undo_metadata*>(head);
 
@@ -64,8 +63,10 @@ undo_buffer::undo()
                      len, mdata->line, mdata->index, utf32_buf);
 
             add_undo_impl(undo_type::remove, data_head, len, mdata->line, mdata->index);
-            g::buf_pt.buffer_ptr
-                     ->apply_remove(data_head, len, mdata->line, mdata->index);
+            auto[new_line, new_point] =
+                g::buf_pt.buffer_ptr->apply_remove(data_head, len, mdata->line, mdata->index);
+            g::buf_pt.curr_line = new_line;
+            g::buf_pt.curr_idx = new_point;
         } break;
 
         case undo_type::insert_inplace:
@@ -73,12 +74,11 @@ undo_buffer::undo()
             LOG_WARN("Undoing insertion _inplace_ of [%ld] characters at %lu:%lu: %s",
                      len, mdata->line, mdata->index, utf32_buf);
 
-            add_undo_impl(undo_type::remove_inplace,
-                          data_head, len,
-                          mdata->line, mdata->index);
-
-            g::buf_pt.buffer_ptr->apply_remove(data_head, len,
-                         mdata->line, mdata->index);
+            add_undo_impl(undo_type::remove_inplace, data_head, len, mdata->line, mdata->index);
+            auto[new_line, new_point] =
+                g::buf_pt.buffer_ptr->apply_remove(data_head, len, mdata->line, mdata->index);
+            g::buf_pt.curr_line = new_line;
+            g::buf_pt.curr_idx = new_point;
         } break;
 
         case undo_type::remove:
@@ -87,8 +87,10 @@ undo_buffer::undo()
                      len, mdata->line, mdata->index, utf32_buf);
 
             add_undo_impl(undo_type::insert, data_head, len, mdata->line, mdata->index);
-            g::buf_pt.buffer_ptr->apply_insert(data_head, len,
-                                               mdata->line, mdata->index);
+            auto[new_line, new_point] =
+                g::buf_pt.buffer_ptr->apply_insert(data_head, len, mdata->line, mdata->index);
+            g::buf_pt.curr_line = new_line;
+            g::buf_pt.curr_idx = new_point;
         } break;
 
         case undo_type::remove_inplace:
@@ -96,10 +98,11 @@ undo_buffer::undo()
             LOG_WARN("Undoing remove _inplace_ of [%ld] characters at %lu:%lu: %s",
                      len, mdata->line, mdata->index, utf32_buf);
 
-            add_undo_impl(undo_type::insert_inplace, data_head, len,
-                          mdata->line, mdata->index);
-            g::buf_pt.buffer_ptr->apply_insert(data_head, len,
-                                               mdata->line, mdata->index);
+            add_undo_impl(undo_type::insert_inplace, data_head, len, mdata->line, mdata->index);
+            auto[new_line, new_point] =
+                g::buf_pt.buffer_ptr->apply_insert(data_head, len, mdata->line, mdata->index);
+            g::buf_pt.curr_line = new_line;
+            g::buf_pt.curr_idx = new_point;
 
             for(int i = 0; i < len; ++i)
             {
@@ -133,6 +136,6 @@ undo_buffer::DEBUG_print_state()
                reinterpret_cast<undo_metadata*>(head)->line,
                reinterpret_cast<undo_metadata*>(head)->index,
                len,
-               utf32_buf);
+               utf32_buf[0] == '\n' ? reinterpret_cast<u8 const*>("EOL") : utf32_buf);
     }
 }

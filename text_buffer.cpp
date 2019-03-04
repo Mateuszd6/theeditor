@@ -92,7 +92,7 @@ void text_buffer::grow_gap()
 }
 
 std::tuple<bool, mm, mm>
-text_buffer::insert_character(mm line, mm point, u32 character)
+text_buffer::insert_character_impl(mm line, mm point, u32 character)
 {
     // This should not be used to insert the newline. User should call
     // insert_newline instead.
@@ -108,7 +108,19 @@ text_buffer::insert_character(mm line, mm point, u32 character)
 }
 
 std::tuple<bool, mm, mm>
-text_buffer::insert_range(mm line, mm point, u32* begin, u32* end)
+text_buffer::insert_character(mm line, mm point, u32 character)
+{
+    auto[succeeded, ret_line, ret_point] = insert_character_impl(line, point, character);
+    if (succeeded)
+    {
+        undo_buf.add_undo(undo_type::insert, &character, 1, line, point);
+    }
+
+    return { succeeded, ret_line, ret_point };
+}
+
+std::tuple<bool, mm, mm>
+text_buffer::insert_range_impl(mm line, mm point, u32* begin, u32* end)
 {
     ASSERT(line >= 0);
     ASSERT(line < size());
@@ -125,7 +137,19 @@ text_buffer::insert_range(mm line, mm point, u32* begin, u32* end)
 }
 
 std::tuple<bool, mm, mm>
-text_buffer::insert_newline(mm line, mm point)
+text_buffer::insert_range(mm line, mm point, u32* begin, u32* end)
+{
+    auto[succeeded, ret_line, ret_point] = insert_range_impl(line, point, begin, end);
+    if (succeeded)
+    {
+        undo_buf.add_undo(undo_type::insert, begin, end - begin, line, point);
+    }
+
+    return { succeeded, ret_line, ret_point };
+}
+
+std::tuple<bool, mm, mm>
+text_buffer::insert_newline_impl(mm line, mm point)
 {
     ASSERT(line >= 0);
     ASSERT(line < size());
@@ -159,8 +183,21 @@ text_buffer::insert_newline(mm line, mm point)
     return { true, line + 1, 0 };
 }
 
+std::tuple<bool, mm, mm>
+text_buffer::insert_newline(mm line, mm point)
+{
+    auto[succeeded, ret_line, ret_point] = insert_newline_impl(line, point);
+    if (succeeded)
+    {
+        u32 newline_ch = static_cast<u32>('\n');
+        undo_buf.add_undo(undo_type::insert, &newline_ch, 1, line, point);
+    }
+
+    return { succeeded, ret_line, ret_point };
+}
+
 void
-text_buffer::delete_line(mm line)
+text_buffer::delete_line_impl(mm line)
 {
     ASSERT(line > 0);
     ASSERT(line < size());
@@ -185,70 +222,124 @@ text_buffer::delete_line(mm line)
     gap_start--;
 }
 
+u32
+text_buffer::del_forward_char_impl(mm line, mm point)
+{
+    LOG_DEBUG("Deleting character forward");
+    ASSERT(point < get_line(line)->size());
+
+    u32 removed_ch = get_line(line)->get(point);
+    bool deleted = get_line(line)->del_forward(point);
+    ASSERT(deleted);
+
+    return removed_ch;
+}
+
+u32
+text_buffer::del_forward_newline_impl(mm line, mm point)
+{
+    LOG_DEBUG("Deleting newline forward");
+    ASSERT(point == get_line(line)->size());
+    ASSERT(line < size() - 1);
+
+    u32 removed_ch = static_cast<u32>('\n');
+    delete_line_impl(line + 1);
+
+    return removed_ch;
+}
+
+u32
+text_buffer::del_backward_char_impl(mm line, mm point)
+{
+    LOG_DEBUG("Deleting character backward");
+    ASSERT(point > 0);
+
+    u32 removed_ch = get_line(line)->get(point - 1);
+    get_line(line)->del_backward(point--);
+
+    return removed_ch;
+}
+
+u32
+text_buffer::del_backward_newline_impl(mm line, mm point)
+{
+    LOG_DEBUG("Deleting newline backward");
+    ASSERT(line > 0);
+    ASSERT(point == 0);
+
+    u32 removed_ch = static_cast<u32>('\n');
+    delete_line_impl(line);
+
+    return removed_ch;
+}
+
 std::tuple<bool, mm, mm>
 text_buffer::del_forward(mm line, mm point)
 {
-    if(point < get_line(line)->size())
+    if (point < get_line(line)->size())
     {
-        LOG_DEBUG("Deleting character forward");
+        u32 removed_ch = del_forward_char_impl(line, point);
+        undo_buf.add_undo(undo_type::remove_inplace, &removed_ch, 1, line, point);
 
-        get_line(line)->del_forward(point);
         return { true, line, point };
     }
-    else if(line < size() - 1)
+    else if (line < size() - 1)
     {
-        LOG_DEBUG("Deleting newline forward");
+        u32 removed_ch = del_forward_newline_impl(line, point);
+        undo_buf.add_undo(undo_type::remove_inplace, &removed_ch, 1, line, point);
 
-        delete_line(line + 1);
         return { true, line, point };
     }
     else
     {
         LOG_WARN("Cannot delete forward");
 
-        return { true, line, point };
+        // TODO: Should break undo chain.
+        return { false, line, point };
     }
 }
 
 std::tuple<bool, mm, mm>
 text_buffer::del_backward(mm line, mm point)
 {
-    if(point > 0)
+    if (point > 0)
     {
-        LOG_DEBUG("Deleting character backward");
+        u32 removed_ch = del_backward_char_impl(line, point);
+        undo_buf.add_undo(undo_type::remove, &removed_ch, 1, line, point - 1);
 
-        get_line(line)->del_backward(point--);
-        return { true, line, point };
+        return { true, line, point - 1 };
     }
-    else if(line > 0)
+    else if (line > 0)
     {
-        LOG_DEBUG("Deleting newline backward");
-
         mm prev_line_size = get_line(line - 1)->size();
-        delete_line(line);
-        line--;
-        point = prev_line_size;
-        return { true, line, point };
+        u32 removed_ch = del_backward_newline_impl(line, point);
+        undo_buf.add_undo(undo_type::remove, &removed_ch, 1, line - 1, prev_line_size);
+
+        return { true, line - 1, prev_line_size };
     }
     else
     {
         LOG_WARN("Cannot delete backward");
 
+        // TODO: Should break undo chain.
         return { false, line, point };
     }
 }
 
-mm text_buffer::size() const
+mm
+text_buffer::size() const
 {
     return capacity - gap_size();
 }
 
-mm text_buffer::gap_size() const
+mm
+text_buffer::gap_size() const
 {
     return gap_end - gap_start;
 }
 
-gap_buffer* text_buffer::get_line(mm line) const
+gap_buffer*
+text_buffer::get_line(mm line) const
 {
     ASSERT(line >= 0);
     ASSERT(line < size());
@@ -259,113 +350,54 @@ gap_buffer* text_buffer::get_line(mm line) const
         return &lines[gap_end + (line - gap_start)];
 }
 
-// TODO: DO NOT MODIFY GLOBAL STATE. THIS IS NOT FINISHED YET!
-// TODO: Probobly get rid of this, at least in this form.
-void text_buffer::apply_insert(u32* data_head, mm len, u64 line, u64 index)
+std::tuple<mm, mm>
+text_buffer::apply_insert(u32* data, mm len, mm line, mm index)
 {
-    // TODO: This should reset last_line_idx. Make a safe ctor.
-    g::buf_pt.curr_line = line;
-    g::buf_pt.curr_idx = index;
-
     for(int i = 0; i < len; ++i)
     {
-        ASSERT(g::buf_pt.point_is_valid());
-
-        bool added = g::buf_pt.insert(data_head[i]);
-        ASSERT(added);
-    }
-}
-
-// TODO: DO NOT MODIFY GLOBAL STATE. THIS IS NOT FINISHED YET!
-// TODO: Probobly get rid of this, at least in this form.
-void text_buffer::apply_remove(u32* data_head, mm len, u64 line, u64 index)
-{
-    // TODO: This should reset last_line_idx. Make a safe ctor.
-    g::buf_pt.curr_line = line;
-    g::buf_pt.curr_idx = index;
-
-    for(int i = 0; i < len; ++i)
-    {
-        ASSERT(g::buf_pt.point_is_valid());
-
-        if(data_head[i] == static_cast<u32>('\n'))
+        if(data[i] == static_cast<u32>('\n'))
         {
-            // Assert that we are at the end of the line.
-            ASSERT(g::buf_pt.buffer_ptr
-                   ->get_line(g::buf_pt.curr_line)
-                   ->size() == g::buf_pt.curr_idx);
-
-            bool line_removed = g::buf_pt.remove_character_forward();
-            ASSERT(line_removed);
+            auto[succeeded, ret_line, ret_point] = insert_newline_impl(line, index);
+            ASSERT(succeeded); // TODO: For now we assume success.
+            line = ret_line;
+            index = ret_point;
         }
         else
         {
-            ASSERT(g::buf_pt.buffer_ptr
-                   ->get_line(g::buf_pt.curr_line)
-                   ->get(g::buf_pt.curr_idx) == data_head[i]);
-
-            bool removed = g::buf_pt.remove_character_forward();
-            ASSERT(removed);
+            auto[succeeded, ret_line, ret_point] = insert_character_impl(line, index, data[i]);
+            ASSERT(succeeded); // TODO: For now we assume success.
+            line = ret_line;
+            index = ret_point;
         }
     }
+
+    return { line, index };
 }
 
-#if 0
-void buffer::DEBUG_print_state() const
+std::tuple<mm, mm>
+text_buffer::apply_remove(u32* data, mm len, mm line, mm index)
 {
-    auto in_gap = false;
-    printf("Gap: %ld-%ld\n", gap_start, gap_end);
-    for (auto i = 0_u64; i < capacity; ++i)
+    for(int i = 0; i < len; ++i)
     {
-        if (i == gap_start)
-            in_gap = true;
-
-        if (i == gap_end)
-            in_gap = false;
-
-        if (!in_gap)
+        if(data[i] == static_cast<u32>('\n'))
         {
-            printf("%3ld:[%3ld]  ", i, lines[i].size());
-#if 0
-            for(auto _ : lines[i])
-                printf("%c", _);
-#else
-            auto line = lines[i].to_c_str();
-            printf("%s", line);
-            free(static_cast<void*>(line));
-#endif
-            printf("\n");
+            // Assert that we are at the end of the line.
+            ASSERT(get_line(line)->size() == index);
+
+            u32 line_removed = del_forward_newline_impl(line, index);
+            ASSERT(line_removed == static_cast<u32>('\n'));
         }
-        else if (in_gap && i - gap_start < 2)
-            printf("%3ld:  ???\n", i);
-        else if (in_gap && i == gap_end - 1)
-            printf("      ...\n%3ld:  ???\n", i);
+        else
+        {
+            ASSERT(get_line(line)->get(index) == data[i]);
+
+            u32 char_removed = del_forward_char_impl(line, index);
+            ASSERT(char_removed == data[i]);
+        }
     }
+
+    return { line, index };
 }
-#endif
-
-#if 0
-bool buffer_point::insert_character_at_point(u32 character)
-{
-    buffer_ptr->get_line(curr_line)->insert(curr_idx++, character);
-    last_line_idx = -1;
-
-    // For now we assume that the inserting character cannot fail.
-    return true;
-}
-
-bool buffer_point::insert_newline_at_point()
-{
-    buffer_ptr->insert_newline(curr_line, curr_idx);
-
-    curr_line++;
-    curr_idx = 0;
-    last_line_idx = -1;
-
-    // For now we assume that the inserting character cannot fail.
-    return true;
-}
-#else
 
 bool
 buffer_point::insert(u32 character)
@@ -400,9 +432,43 @@ buffer_point::insert(u32 character)
     }
 }
 
-#endif
+bool
+buffer_point::insert(u32* begin, u32* end)
+{
+    // TODO: Encapsulate.
+    last_line_idx = -1;
 
-bool buffer_point::remove_character_backward()
+    for(u32* curr = begin; curr != end;)
+    {
+        while(curr != end && *curr != '\n')
+        {
+            ++curr;
+        }
+
+        {
+            auto[succeeded, line, point] =
+                buffer_ptr->insert_range(curr_line, curr_idx, begin, end);
+            ASSERT(succeeded); // TODO: For now assume success.
+            curr_line = line;
+            curr_idx = point;
+        }
+
+        // EOL was reached, not end.
+        if(curr != end)
+        {
+            auto[succeeded, line, point] = buffer_ptr->insert_newline(curr_line, curr_idx);
+            ASSERT(succeeded); // TODO: For now assume success.
+            curr_line = line;
+            curr_idx = point;
+
+            curr++;
+        }
+    }
+
+    return true;
+}
+
+bool buffer_point::del_backward()
 {
     // TODO: Encapsulate.
     last_line_idx = -1;
@@ -419,7 +485,7 @@ bool buffer_point::remove_character_backward()
     return succeeded;
 }
 
-bool buffer_point::remove_character_forward()
+bool buffer_point::del_forward()
 {
     // TODO: Encapsulate.
     last_line_idx = -1;
@@ -684,9 +750,18 @@ write_to_buffer(text_buffer* buffer,
 
         if(curr != end) // Different than end means newline character.
         {
+#if 0
             buffer->insert_newline(line, buffer->get_line(line)->size());
-            line++;
+#else
+            // TODO: This is the same as insert_newline but does not record
+            //       undo. Think how undo recording can be disabled/enabled.
+            if (buffer->gap_size() <= 2)
+                buffer->grow_gap();
+            buffer->move_gap_to_point(line + 1);
+            buffer->gap_start++;
+#endif
 
+            line++;
             idx = 0;
             ++curr;
             prev = curr;
