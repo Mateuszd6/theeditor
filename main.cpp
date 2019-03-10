@@ -1,5 +1,4 @@
 #include "xwindow.hpp"
-
 #include "gap_buffer.hpp"
 #include "text_buffer.hpp"
 #include "strref.hpp"

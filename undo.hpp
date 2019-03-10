@@ -16,6 +16,13 @@ enum struct undo_type : i32
     remove_inplace,
 };
 
+enum struct undo_seq_state : i32
+{
+    none,
+
+    insert,
+};
+
 struct undo_metadata
 {
     undo_type oper;
@@ -40,6 +47,7 @@ struct undo_buffer
     u8 buffer[1024 * 1024];
     u8* undo_head = &(buffer[0]);
     u8* redo_head = &(buffer[0]);
+    undo_seq_state curr_state = undo_seq_state::none;
 
     void break_undo_chain();
     void add_undo_impl(undo_type type, u32 const* data, mm len, u64 line, u64 index);

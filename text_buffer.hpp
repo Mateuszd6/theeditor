@@ -42,15 +42,7 @@ struct text_buffer
     // is removed.
     void delete_line_impl(mm line);
 
-    // Character must not be '\n'. Use insert_newline to do it.
-    std::tuple<bool, mm, mm> insert_character(mm line, mm point, u32 character);
-
-    // Should be the same as calling end - begin times insert_charater, but
-    // otpimized. The range cannot have '\n' characters in it!!
-    std::tuple<bool, mm, mm> insert_range(mm line, mm point, u32* begin, u32* end);
-
-    // Insert newline character at given point.
-    std::tuple<bool, mm, mm> insert_newline(mm line, mm point);
+    std::tuple<bool, mm, mm> insert(mm line, mm point, u32* begin, u32* end);
 
     std::tuple<bool, mm, mm> del_forward(mm line, mm point);
     std::tuple<bool, mm, mm> del_backward(mm line, mm point);

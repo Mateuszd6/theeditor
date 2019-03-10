@@ -108,18 +108,6 @@ text_buffer::insert_character_impl(mm line, mm point, u32 character)
 }
 
 std::tuple<bool, mm, mm>
-text_buffer::insert_character(mm line, mm point, u32 character)
-{
-    auto[succeeded, ret_line, ret_point] = insert_character_impl(line, point, character);
-    if (succeeded)
-    {
-        undo_buf.add_undo(undo_type::insert, &character, 1, line, point);
-    }
-
-    return { succeeded, ret_line, ret_point };
-}
-
-std::tuple<bool, mm, mm>
 text_buffer::insert_range_impl(mm line, mm point, u32* begin, u32* end)
 {
     ASSERT(line >= 0);
@@ -137,15 +125,12 @@ text_buffer::insert_range_impl(mm line, mm point, u32* begin, u32* end)
 }
 
 std::tuple<bool, mm, mm>
-text_buffer::insert_range(mm line, mm point, u32* begin, u32* end)
+text_buffer::insert(mm line, mm point, u32* begin, u32* end)
 {
-    auto[succeeded, ret_line, ret_point] = insert_range_impl(line, point, begin, end);
-    if (succeeded)
-    {
-        undo_buf.add_undo(undo_type::insert, begin, end - begin, line, point);
-    }
+    auto[ret_line, ret_point] = apply_insert(begin, end - begin, line, point);
+    undo_buf.add_undo(undo_type::insert, begin, end - begin, line, point);
 
-    return { succeeded, ret_line, ret_point };
+    return { true, ret_line, ret_point };
 }
 
 std::tuple<bool, mm, mm>
@@ -181,19 +166,6 @@ text_buffer::insert_newline_impl(mm line, mm point)
     edited_line->del_to_end(point);
 
     return { true, line + 1, 0 };
-}
-
-std::tuple<bool, mm, mm>
-text_buffer::insert_newline(mm line, mm point)
-{
-    auto[succeeded, ret_line, ret_point] = insert_newline_impl(line, point);
-    if (succeeded)
-    {
-        u32 newline_ch = static_cast<u32>('\n');
-        undo_buf.add_undo(undo_type::insert, &newline_ch, 1, line, point);
-    }
-
-    return { succeeded, ret_line, ret_point };
 }
 
 void
@@ -405,31 +377,7 @@ buffer_point::insert(u32 character)
     // TODO: Encapsulate.
     last_line_idx = -1;
 
-    ASSERT(character != 0);
-    if (character == static_cast<u32>('\n'))
-    {
-        auto[succeeded, line, point] = buffer_ptr->insert_newline(curr_line, curr_idx);
-        if (succeeded)
-        {
-            curr_line = line;
-            curr_idx = point;
-        }
-
-        ASSERT(point_is_valid());
-        return succeeded;
-    }
-    else
-    {
-        auto[succeeded, line, point] = buffer_ptr->insert_character(curr_line, curr_idx, character);
-        if (succeeded)
-        {
-            curr_line = line;
-            curr_idx = point;
-        }
-
-        ASSERT(point_is_valid());
-        return succeeded;
-    }
+    return insert(&character, (&character) + 1);
 }
 
 bool
@@ -438,34 +386,20 @@ buffer_point::insert(u32* begin, u32* end)
     // TODO: Encapsulate.
     last_line_idx = -1;
 
-    for(u32* curr = begin; curr != end;)
+    for (u32* p = begin; p != end; ++p)
     {
-        while(curr != end && *curr != '\n')
-        {
-            ++curr;
-        }
-
-        {
-            auto[succeeded, line, point] =
-                buffer_ptr->insert_range(curr_line, curr_idx, begin, end);
-            ASSERT(succeeded); // TODO: For now assume success.
-            curr_line = line;
-            curr_idx = point;
-        }
-
-        // EOL was reached, not end.
-        if(curr != end)
-        {
-            auto[succeeded, line, point] = buffer_ptr->insert_newline(curr_line, curr_idx);
-            ASSERT(succeeded); // TODO: For now assume success.
-            curr_line = line;
-            curr_idx = point;
-
-            curr++;
-        }
+        ASSERT(*p != 0);
     }
 
-    return true;
+    auto[succeeded, line, point] = buffer_ptr->insert(curr_line, curr_idx, begin, end);
+    if (succeeded)
+    {
+        curr_line = line;
+        curr_idx = point;
+    }
+
+    ASSERT(point_is_valid());
+    return succeeded;
 }
 
 bool buffer_point::del_backward()
@@ -750,16 +684,13 @@ write_to_buffer(text_buffer* buffer,
 
         if(curr != end) // Different than end means newline character.
         {
-#if 0
-            buffer->insert_newline(line, buffer->get_line(line)->size());
-#else
             // TODO: This is the same as insert_newline but does not record
             //       undo. Think how undo recording can be disabled/enabled.
+            //       Could this use insert_newline_impl??
             if (buffer->gap_size() <= 2)
                 buffer->grow_gap();
             buffer->move_gap_to_point(line + 1);
             buffer->gap_start++;
-#endif
 
             line++;
             idx = 0;
