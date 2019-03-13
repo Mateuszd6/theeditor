@@ -88,9 +88,11 @@ handle_key(key pressed_key)
                     text, text + g::tmp_window_hndl->clip_size,
                     buffer, buffer + 1024);
 
-                g::buf_pt.buffer_ptr->undo_buf.add_undo(undo_type::insert,
-                         buffer, dest - buffer,
-                         g::buf_pt.curr_line, g::buf_pt.curr_idx);
+                g::buf_pt.buffer_ptr
+                    ->undo_buf
+                    .add_undo(undo_type::insert,
+                              buffer, dest - buffer,
+                              g::buf_pt.curr_line, g::buf_pt.curr_idx);
 
                 // TODO: This could be done with apply_insert.
                 for(auto p = buffer; p != dest; ++p)
@@ -200,23 +202,10 @@ handle_event(xwindow* win)
     XEvent ev;
     XNextEvent(win->dpy, &ev);
 
+
+    LOG_ERROR("EVENT: -> %d", ev.type);
     switch(ev.type)
     {
-        case Expose:
-        {
-            LOG_WARN("__ Expose  __");
-        } break;
-
-        case GraphicsExpose:
-        {
-            LOG_WARN("__ GraphicsExpose  __");
-        } break;
-
-        case NoExpose:
-        {
-            LOG_WARN("__ NoExpose  __");
-        } break;
-
         case ConfigureNotify:
         {
             g::buffer_is_dirty = true;
@@ -258,14 +247,37 @@ handle_event(xwindow* win)
             // TODO: Figure out this event.
         } break;
 
+#if 0
         case FocusIn:
         {
             LOG_WARN("__ FocusIn __");
+
+            // TODO: Figure out this event.
         } break;
 
         case FocusOut:
         {
             LOG_WARN("__ FocusOut __");
+
+            // TODO: Figure out this event.
+        } break;
+#endif
+
+        case Expose:
+        {
+            LOG_WARN("__ Expose __");
+
+            g::buffer_is_dirty = true;
+        } break;
+
+        case GraphicsExpose:
+        {
+            LOG_WARN("__ GraphicsExpose  __");
+        } break;
+
+        case NoExpose:
+        {
+            LOG_WARN("__ NoExpose  __");
         } break;
 
         case KeyPress:

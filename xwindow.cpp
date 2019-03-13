@@ -23,31 +23,11 @@ xwindow::xwindow(int width_, int heigth_)
 
     XSetWindowAttributes wa;
     wa.background_pixmap = ParentRelative;
-    wa.event_mask = (KeyPressMask |
-                     KeyReleaseMask |
-                     ButtonPressMask |
-                     ButtonReleaseMask |
-                     EnterWindowMask |
-                     LeaveWindowMask |
-                     PointerMotionMask |
-                     PointerMotionHintMask |
-                     Button1MotionMask |
-                     Button2MotionMask |
-                     Button3MotionMask |
-                     Button4MotionMask |
-                     Button5MotionMask |
-                     ButtonMotionMask |
-                     KeymapStateMask |
-                     ExposureMask |
-                     VisibilityChangeMask |
-                     StructureNotifyMask |
-                     ResizeRedirectMask |
-                     SubstructureNotifyMask |
-                     SubstructureRedirectMask |
-                     FocusChangeMask |
-                     PropertyChangeMask |
-                     ColormapChangeMask |
-                     OwnerGrabButtonMask);
+    wa.event_mask = (KeyPressMask
+                     | KeyReleaseMask
+                     | StructureNotifyMask
+                     | FocusChangeMask
+                     | ExposureMask);
 
     // TODO: Figure CWBackPixmap out! This makes resizing horriebly slow
     win = XCreateWindow(dpy, DefaultRootWindow(dpy),
@@ -62,6 +42,7 @@ xwindow::xwindow(int width_, int heigth_)
     gc = XCreateGC(dpy, win, 0, nullptr);
     draw = XftDrawCreate(dpy, canvas, vis, cmap);
 
+    XSetGraphicsExposures(dpy, gc, True);
     XSetLineAttributes(dpy, gc, 1, LineSolid, CapButt, JoinMiter);
     XClearWindow(dpy, win);
     XChangeWindowAttributes(dpy, win, 0, &wa);
@@ -92,7 +73,11 @@ xwindow::xwindow(int width_, int heigth_)
                           nullptr);
 
     XSetICFocus(input_xic);
-    XSelectInput(dpy, win, KeyPressMask | KeyReleaseMask | StructureNotifyMask);
+    XSelectInput(dpy, win, (KeyPressMask
+                            | KeyReleaseMask
+                            | StructureNotifyMask
+                            | FocusChangeMask
+                            | ExposureMask));
     XMapWindow(dpy, win);
 }
 
