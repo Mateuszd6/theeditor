@@ -47,6 +47,21 @@ xwindow::xwindow(int width_, int heigth_)
     XClearWindow(dpy, win);
     XChangeWindowAttributes(dpy, win, 0, &wa);
 
+    char const* progname = "user@editor";
+    char const* classname = "TheEditor";
+
+    // set the titlebar name
+    XStoreName(dpy, win, progname);
+
+    // set the name and class hints for the window manager to use
+    XClassHint* classHint = XAllocClassHint();
+    if (classHint) {
+        classHint->res_name = const_cast<char*>(progname);
+        classHint->res_class = const_cast<char*>(classname);
+    }
+    XSetClassHint(dpy, win, classHint);
+    XFree(classHint);
+
     // Input sutff:
     // loads the XMODIFIERS environment variable to see what IME to use
     XSetLocaleModifiers("");
