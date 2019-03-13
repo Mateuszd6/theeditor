@@ -23,7 +23,31 @@ xwindow::xwindow(int width_, int heigth_)
 
     XSetWindowAttributes wa;
     wa.background_pixmap = ParentRelative;
-    wa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+    wa.event_mask = (KeyPressMask |
+                     KeyReleaseMask |
+                     ButtonPressMask |
+                     ButtonReleaseMask |
+                     EnterWindowMask |
+                     LeaveWindowMask |
+                     PointerMotionMask |
+                     PointerMotionHintMask |
+                     Button1MotionMask |
+                     Button2MotionMask |
+                     Button3MotionMask |
+                     Button4MotionMask |
+                     Button5MotionMask |
+                     ButtonMotionMask |
+                     KeymapStateMask |
+                     ExposureMask |
+                     VisibilityChangeMask |
+                     StructureNotifyMask |
+                     ResizeRedirectMask |
+                     SubstructureNotifyMask |
+                     SubstructureRedirectMask |
+                     FocusChangeMask |
+                     PropertyChangeMask |
+                     ColormapChangeMask |
+                     OwnerGrabButtonMask);
 
     // TODO: Figure CWBackPixmap out! This makes resizing horriebly slow
     win = XCreateWindow(dpy, DefaultRootWindow(dpy),

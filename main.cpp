@@ -202,12 +202,27 @@ handle_event(xwindow* win)
 
     switch(ev.type)
     {
+        case Expose:
+        {
+            LOG_WARN("__ Expose  __");
+        } break;
+
+        case GraphicsExpose:
+        {
+            LOG_WARN("__ GraphicsExpose  __");
+        } break;
+
+        case NoExpose:
+        {
+            LOG_WARN("__ NoExpose  __");
+        } break;
+
         case ConfigureNotify:
         {
             g::buffer_is_dirty = true;
 
             auto xce = ev.xconfigure;
-            LOG_WARN("CONFIGURE NOTIFY %dx%d", xce.width, xce.height);
+            LOG_WARN("__ ConfigureNotify __ %dx%d", xce.width, xce.height);
 
             // This event type is generated for a variety of happenings, so check
             // whether the window has been resized.
@@ -221,16 +236,42 @@ handle_event(xwindow* win)
             }
         } break;
 
-        case UnmapNotify:
+        case VisibilityNotify:
         {
-            g::buffer_is_dirty = true;
-            LOG_WARN("UNMAP NOTIFY");
+            LOG_WARN("__ VisibilityNotify __");
 
             // TODO: Figure out this event.
         } break;
 
+        case MapNotify:
+        {
+            LOG_WARN("__ MapNotify __");
+
+            // TODO: Figure out this event.
+        } break;
+
+        case UnmapNotify:
+        {
+            LOG_WARN("__ UnmapNotify __");
+
+            g::buffer_is_dirty = true;
+            // TODO: Figure out this event.
+        } break;
+
+        case FocusIn:
+        {
+            LOG_WARN("__ FocusIn __");
+        } break;
+
+        case FocusOut:
+        {
+            LOG_WARN("__ FocusOut __");
+        } break;
+
         case KeyPress:
         {
+            LOG_WARN("__ KeyPress __");
+
             g::buffer_is_dirty = true;
 
             Status status;
@@ -322,6 +363,7 @@ handle_event(xwindow* win)
 
         default:
         {
+            LOG_ERROR("__ UNKNOWN: %d __", ev.type);
         } break;
     }
 }
