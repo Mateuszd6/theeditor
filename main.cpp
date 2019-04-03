@@ -69,10 +69,6 @@ handle_key(key pressed_key)
             return;
         }
         else
-            // TODO(NEXT): This is bad. We shouldn't break the undo chain every
-            //             time we invoke other shortcut thatn Undo. This is
-            //             because e.g. Home (move to the idx 0 in line) should
-            //             not reset the undo state!!!!
             g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         if (*shortcut_name == "Copy")
@@ -176,7 +172,7 @@ handle_key(key pressed_key)
     }
     else if (pressed_key.codept == 0)
     {
-        // TODO(NEXT): This should not break the chain, as we don't do anything.
+        // TODO(NEXT): Should this break the chain? We don't do anything.
         g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
         LOG_INFO("[%s] is a special key with no shortcut assigned to it. Ignored.",
