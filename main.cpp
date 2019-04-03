@@ -58,6 +58,7 @@ static void
 handle_key(key pressed_key)
 {
     std::string const* shortcut_name;
+
     if ((shortcut_name = is_shortcut(pressed_key)) != nullptr)
     {
         LOG_WARN("Shortcut: %s", shortcut_name->c_str());
@@ -66,10 +67,14 @@ handle_key(key pressed_key)
         if (*shortcut_name == "Undo")
         {
             g::buf_pt.buffer_ptr->undo_buf.undo();
+            g::prev_comm = prev_command_type::undo;
             return;
         }
         else
+        {
+            g::prev_comm = prev_command_type::none;
             g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
+        }
 
         if (*shortcut_name == "Copy")
         {
@@ -77,6 +82,8 @@ handle_key(key pressed_key)
             g::tmp_window_hndl->set_clipboard_contents(
                 reinterpret_cast<u8*>(text),
                 static_cast<u32>(array_cnt("Mateusz") - 1));
+
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Quit")
         {
@@ -87,6 +94,7 @@ handle_key(key pressed_key)
             g::tmp_window_hndl->free_font();
             g::tmp_window_hndl->~xwindow();
 
+            g::prev_comm = prev_command_type::none;
             exit(0);
         }
         else if (*shortcut_name == "Paste")
@@ -110,65 +118,99 @@ handle_key(key pressed_key)
                 g::buf_pt.curr_line =  ret_line;
                 g::buf_pt.curr_idx = ret_idx;
                 ASSERT(g::buf_pt.point_is_valid());
+
+                g::prev_comm = prev_command_type::paste;
             }
             else
+            {
                 LOG_ERROR("The clipboard is empty!");
+                g::prev_comm = prev_command_type::none;
+            }
+        }
+        else if (*shortcut_name == "Save")
+        {
+            LOG_INFO("Saving buffer as './saved_test'...saved_test");
+            save_buffer(g::buf_pt.buffer_ptr, "./saved_test", encoding::utf8);
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Debug Print Undo")
         {
             LOG_INFO("Printing undo state: ");
             g::buf_pt.buffer_ptr->undo_buf.DEBUG_print_state();
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Delete Backward")
         {
             g::buf_pt.del_backward();
+            g::prev_comm = prev_command_type::remove;
         }
         else if (*shortcut_name == "Delete Forward")
         {
             g::buf_pt.del_forward();
+            g::prev_comm = prev_command_type::remove_inplace;
         }
         else if (*shortcut_name == "Insert Tab")
         {
             u32 buffer[] = { ' ', ' ', ' ', ' ', };
             g::buf_pt.insert(buffer, buffer + 4);
+
+            g::prev_comm = prev_command_type::insert;
         }
         else if (*shortcut_name == "Insert Newline")
         {
             u32 newline_ch = static_cast<u32>('\n');
             g::buf_pt.insert(newline_ch);
+
+            // TODO: possible differenciate between insert and insert_newline?
+            g::prev_comm = prev_command_type::insert;
         }
         else if (*shortcut_name == "Move Up")
         {
             if(!g::buf_pt.line_up())
                 LOG_WARN("Cannot move up!");
+
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Move Down")
         {
             if(!g::buf_pt.line_down())
                 LOG_WARN("Cannot move down!");
+
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Move Left")
         {
             if(!g::buf_pt.character_left())
                 LOG_WARN("Cannot move left!");
+
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Move Right")
         {
             if(!g::buf_pt.character_right())
                 LOG_WARN("Cannot move right!");
+
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Move End")
         {
             if(!g::buf_pt.line_end())
                 LOG_WARN("Cannot move to end!");
+
+            g::prev_comm = prev_command_type::none;
         }
         else if (*shortcut_name == "Move Home")
         {
             if(!g::buf_pt.line_start())
                 LOG_WARN("Cannot move to home!");
+
+            g::prev_comm = prev_command_type::none;
         }
         else
+        {
             LOG_WARN("Not supported shortcut: %s", shortcut_name->c_str());
+            g::prev_comm = prev_command_type::none;
+        }
     }
     else if (pressed_key.codept == 0)
     {
@@ -177,6 +219,8 @@ handle_key(key pressed_key)
 
         LOG_INFO("[%s] is a special key with no shortcut assigned to it. Ignored.",
                  keycode_names[pressed_key.keycode]);
+
+        g::prev_comm = prev_command_type::none;
     }
     else if (pressed_key.codept != 0)
     {
@@ -184,6 +228,8 @@ handle_key(key pressed_key)
 
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
         g::buf_pt.insert(pressed_key.codept);
+
+        g::prev_comm = prev_command_type::insert;
     }
 }
 
@@ -641,6 +687,65 @@ main()
                 }
 
             win.clear_clamp_rect();
+
+            // Display previous command on the screen:
+            {
+                u32 buf[64];
+                mm len = 0;
+                switch(g::prev_comm)
+                {
+                    case prev_command_type::none:
+                    {
+                        char const txt_[] = "none";
+                        u8 const* txt = reinterpret_cast<u8 const*>(&(txt_[0]));
+                        len = array_cnt(txt_);
+                        utf8_to_utf32(txt, txt + len, buf, buf+64);
+                    } break;
+
+                    case prev_command_type::insert:
+                    {
+                        char const txt_[] = "insert";
+                        u8 const* txt = reinterpret_cast<u8 const*>(&(txt_[0]));
+                        len = array_cnt(txt_);
+                        utf8_to_utf32(txt, txt + len, buf, buf+64);
+                    } break;
+
+                    case prev_command_type::paste:
+                    {
+                        char const txt_[] = "paste";
+                        u8 const* txt = reinterpret_cast<u8 const*>(&(txt_[0]));
+                        len = array_cnt(txt_);
+                        utf8_to_utf32(txt, txt + len, buf, buf+64);
+                    } break;
+
+                    case prev_command_type::remove:
+                    {
+                        char const txt_[] = "remove";
+                        u8 const* txt = reinterpret_cast<u8 const*>(&(txt_[0]));
+                        len = array_cnt(txt_);
+                        utf8_to_utf32(txt, txt + len, buf, buf+64);
+                    } break;
+
+                    case prev_command_type::remove_inplace:
+                    {
+                        char const txt_[] = "remove_inplace";
+                        u8 const* txt = reinterpret_cast<u8 const*>(&(txt_[0]));
+                        len = array_cnt(txt_);
+                        utf8_to_utf32(txt, txt + len, buf, buf+64);
+                    } break;
+
+                    case prev_command_type::undo:
+                    {
+                        char const txt_[] = "undo";
+                        u8 const* txt = reinterpret_cast<u8 const*>(&(txt_[0]));
+                        len = array_cnt(txt_);
+                        utf8_to_utf32(txt, txt + array_cnt(txt_), buf, buf+64);
+                    } break;
+                }
+
+                win.draw_text(15, win.height - 1, 3, buf, len - 1, nullptr);
+            }
+
             win.flush();
 
             auto elapsed = chrono::system_clock::now() - start;

@@ -12,10 +12,7 @@ ifeq ($(CC),clang++)
 	WARN_FLAGS=-Weverything
 	DISABLED_WARNINGS += -Wno-c++98-compat-pedantic \
 			     -Wno-gnu-zero-variadic-macro-arguments \
-			     -Wno-gnu-anonymous-struct \
-			     -Wno-nested-anon-types \
-			     -Wno-vla-extension \
-			     -Wno-vla
+			     -Wno-vla -Wno-vla-extension
 else
 	WARN_FLAGS=-Wall -Wextra -Wshadow
 endif

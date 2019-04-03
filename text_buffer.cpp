@@ -823,6 +823,7 @@ save_buffer_utf8(text_buffer* buf, char const* file_path)
     fclose(file);
 }
 
+// TODO: Error code.
 static void
 save_buffer(text_buffer* buf, char const* file_path, encoding enc)
 {
