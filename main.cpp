@@ -252,9 +252,6 @@ handle_event(xwindow* win)
             // whether the window has been resized.
             if (xce.width != win->width || xce.height != win->height)
             {
-                // TODO: Resizing height when buffer is displayed from the
-                //       bottom is buggy. The buffers must be notified.
-
                 win->resize(xce.width, xce.height);
                 LOG_WARN("RESIZING: %dx%d", xce.width, xce.height);
             }
@@ -624,41 +621,95 @@ main()
         {
             auto start = chrono::system_clock::now();
 
+            LOG_ERROR("FIRST = %ld, CURR = %ld [%c]",
+                      g::buf_pt.first_line,
+                      g::buf_pt.curr_line,
+                      g::buf_pt.starting_from_top ? 'v' : '^');
+
+            // This is the size of the main buffer relative to the screen.
+            i16 marg_left = 5;
+            i16 marg_right = 5;
+            i16 marg_top = 5;
+            i32 marg_bottom = g::font_height + 2;
+            i32 buf_width = win.width - (marg_left) - (marg_right);
+            i32 buf_heigth = win.height - (marg_top) - (marg_bottom);
+
             g::buffer_is_dirty = false;
             win.draw_rect(0, 0, win.width, win.height, 0);
-            win.draw_rect(16 -1 , 16 - 1, win.width - 32 + 2, win.height - 32 + 2, 1);
-            win.draw_rect(16, 16, win.width - 32, win.height - 32, 0);
+            win.draw_rect(marg_left, marg_top, buf_width, buf_heigth, 2);
+            win.draw_rect(marg_left + 1, marg_top + 1, buf_width - 2, buf_heigth - 2, 0);
+            win.set_clamp_rect(marg_left + 1, marg_top + 1, buf_width - 2, buf_heigth - 2);
 
-            win.set_clamp_rect(16 -1 , 16 - 1 + 1,
-                               static_cast<i16>(win.width - 32 + 1),
-                               static_cast<i16>(win.height - 32));
-
-            // TODO: Check if boundries are correct.
-            auto no_lines = ((win.height - 32 + 1) / g::font_height) + 1;
-
-            if(g::buf_pt.curr_line <= g::buf_pt.first_line)
+            // TODO: simplify & test this horrible thing:
+            i32 no_lines = buf_heigth / g::font_height + 1;
+            if (no_lines != g::buf_pt.visible_lines)
             {
-                g::buf_pt.first_line = g::buf_pt.curr_line;
-                g::buf_pt.starting_from_top = true;
+                mm diff = no_lines - g::buf_pt.visible_lines;
+                if (diff > 0 && !g::buf_pt.starting_from_top && g::buf_pt.visible_lines != 0)
+                {
+                    g::buf_pt.first_line -= diff;
+                    if (g::buf_pt.first_line <= 0)
+                    {
+                        g::buf_pt.first_line = 0;
+                        g::buf_pt.starting_from_top = true;
+                    }
+                }
+
+                g::buf_pt.visible_lines = no_lines;
             }
-            else if (static_cast<i64>(g::buf_pt.curr_line - g::buf_pt.first_line) >= no_lines - 1)
+
+            // Happens when only last line is visible and it is deleted with backspace.
+            if (g::buf_pt.first_line >= g::buf_pt.buffer_ptr->size())
+                g::buf_pt.first_line = g::buf_pt.buffer_ptr->size() - 1;
+
+            ASSERT(0 <= g::buf_pt.first_line && g::buf_pt.first_line < g::buf_pt.buffer_ptr->size());
+            ASSERT(0 <= g::buf_pt.curr_line && g::buf_pt.curr_line < g::buf_pt.buffer_ptr->size());
+
+            if (g::buf_pt.starting_from_top)
             {
-                g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
-                g::buf_pt.starting_from_top = false;
+                if (g::buf_pt.curr_line - g::buf_pt.first_line >= no_lines - 1)
+                {
+                    g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
+                    g::buf_pt.starting_from_top = false;
+                }
+                else if (g::buf_pt.curr_line < g::buf_pt.first_line)
+                {
+                    g::buf_pt.first_line = g::buf_pt.curr_line;
+                }
             }
+            else
+            {
+                if (g::buf_pt.curr_line <= g::buf_pt.first_line)
+                {
+                    g::buf_pt.first_line = g::buf_pt.curr_line;
+                    g::buf_pt.starting_from_top = true;
+                }
+                else if (g::buf_pt.curr_line - g::buf_pt.first_line > no_lines - 1)
+                {
+                    g::buf_pt.first_line = g::buf_pt.curr_line - (no_lines - 1);
+                }
+            }
+
+            // Assert that we didn't break anything.
+            ASSERT(0 <= g::buf_pt.first_line && g::buf_pt.first_line < g::buf_pt.buffer_ptr->size());
+            ASSERT(0 <= g::buf_pt.curr_line && g::buf_pt.curr_line < g::buf_pt.buffer_ptr->size());
 
             // TODO: Make sure we are not drawing out-of-bounds, because 1. We
             //       loose a lot of time when doing that, 2. It is bugprone.
+            //       ^ Check how it works for long lines (longer than a line)
             // TODO: Merge it somehow.
             if (g::buf_pt.starting_from_top)
+            {
                 for(auto k = 0; k < no_lines; ++k)
                 {
                     auto line_to_draw = k + g::buf_pt.first_line;
                     if(line_to_draw >= g::buf_pt.buffer_ptr->size())
                         break;
 
-                    auto basex = 18;
-                    auto basey = 16 + (k + 1) * g::font_height - g::font_descent;
+                    // NOTE: +2 because (+1) we don't want to draw on the
+                    //       marigin, (+1) for additional space.
+                    auto basex = marg_left + 2;
+                    auto basey = marg_top + 2 + (k + 1) * g::font_height - g::font_descent;
 
                     auto refs = g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs_();
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
@@ -666,17 +717,23 @@ main()
                                       basex, basey,
                                       refs.data());
                 }
+            }
             else
+            {
                 for(auto k = no_lines - 1; k >= 0; --k)
                 {
                     auto line_to_draw = k + g::buf_pt.first_line;
 
                     // We can be starting from bot and not have a full buffer.
+                    // TODO: But why? This is super-bugprone!!!
                     if(line_to_draw >= g::buf_pt.buffer_ptr->size())
                         continue;
 
-                    auto basex = 18;
-                    auto basey = 16 - 1 + win.height - 32 + 1 -
+                    // NOTE: x is +2 because same reason as above. y is + 1
+                    //       becuase of the offset and each marigin adds 1
+                    //       because we do not draw on them.
+                    auto basex = marg_left + 2;
+                    auto basey = win.height - (marg_top - 1) - (marg_bottom - 1) + 1 -
                         ((no_lines - 1) - k) * g::font_height - g::font_descent;
 
                     auto refs = g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs_();
@@ -685,6 +742,7 @@ main()
                                       basex, basey,
                                       refs.data());
                 }
+            }
 
             win.clear_clamp_rect();
 
@@ -743,7 +801,7 @@ main()
                     } break;
                 }
 
-                win.draw_text(15, win.height - 1, 3, buf, len - 1, nullptr);
+                win.draw_text(marg_left, win.height - g::font_descent - 1, 3, buf, len - 1, nullptr);
             }
 
             win.flush();
@@ -754,7 +812,8 @@ main()
                      static_cast<int>(chrono::duration_cast<chrono::milliseconds>(elapsed).count()));
 
             // This will give us about 16ms speed.
-            std::this_thread::sleep_for(16ms - elapsed);
+            if (elapsed <  16ms)
+                std::this_thread::sleep_for(16ms - elapsed);
         }
     }
 }

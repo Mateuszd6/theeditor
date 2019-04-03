@@ -150,9 +150,14 @@ xwindow::resize(int new_w, int new_h)
 
 
 void
-xwindow::set_clamp_rect(i16 x, i16 y, u16 w, u16 h)
+xwindow::set_clamp_rect(i32 x, i32 y, i32 w, i32 h)
 {
-    auto boundrect = XRectangle{x, y, w, h};
+    i16 rectx = safe_trunc<i32, i16>(x);
+    i16 recty = safe_trunc<i32, i16>(y);
+    u16 rectw = safe_trunc<i32, u16>(w);
+    u16 recth = safe_trunc<i32, u16>(h);
+
+    auto boundrect = XRectangle{rectx, recty, rectw, recth};
     auto r = XCreateRegion();
     XUnionRectWithRegion(&boundrect, r, r);
     XftDrawSetClip(draw, r);

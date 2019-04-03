@@ -76,6 +76,7 @@ struct buffer_point
     /// After moving to the larger one, this index is tried to be restored.
     /// This value is ignored when it is equal to -1.
     mm last_line_idx;
+    mm visible_lines;
     bool starting_from_top;
 
     bool insert(u32 character);

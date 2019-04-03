@@ -130,8 +130,38 @@ namespace intr
 #endif
 }
 
+// Returns the number of elemensts in c-style array.
 template<typename T, mm n>
-mm array_cnt( T (&)[n] ) { return n; }
+constexpr mm
+array_cnt( T (&)[n] )
+{
+    return n;
+}
+
+// Returns the number of elemensts in the cstyle-string,
+// DOES NOT COUNT NULL TERMINATOR. THATS THE DIFFERENCE BETWEEN array_cnt.
+template<mm n>
+constexpr mm
+cstr_cnt(const char (&)[n])
+{
+    return n - 1;
+}
+
+#include <limits>
+
+// TODO: Enable if integral. Different for real numbers.
+template<typename FROM_TYPE, typename TO_TYPE>
+static inline constexpr TO_TYPE
+safe_trunc(FROM_TYPE val)
+{
+    constexpr mm max_from = static_cast<mm>(std::numeric_limits<FROM_TYPE>::max());
+    constexpr mm max_to = static_cast<mm>(std::numeric_limits<TO_TYPE>::max());
+    if constexpr (max_from < max_to)
+        return static_cast<TO_TYPE>(val);
+
+    ASSERT(val < max_to);
+    return static_cast<TO_TYPE>(val);
+}
 
 #include <chrono>
 namespace chrono = std::chrono;
