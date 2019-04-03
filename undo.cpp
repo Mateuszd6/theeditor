@@ -111,10 +111,10 @@ undo_buffer::undo()
     u32* data_head = reinterpret_cast<u32*>(head + sizeof(undo_metadata));
     undo_metadata* mdata = reinterpret_cast<undo_metadata*>(head);
 
-    // TODO: What happend if we index out of buffer?
-    u8 utf32_buf[1024];
+    // TODO: Make a fucntion utf32_to_utf8_allocate and call it here!
+    u8 utf8_buf[1024];
     auto[_, dest_reached] = utf32_to_utf8(data_head, data_head + len,
-                                          utf32_buf, utf32_buf + 1024);
+                                          utf8_buf, utf8_buf + 1023);
     *dest_reached = '\0';
 
     switch (mdata->oper)
@@ -122,7 +122,7 @@ undo_buffer::undo()
         case undo_type::insert:
         {
             LOG_WARN("Undoing insertion of [%ld] characters at %lu:%lu: %s",
-                     len, mdata->line, mdata->index, utf32_buf);
+                     len, mdata->line, mdata->index, utf8_buf);
 
             add_undo_impl(undo_type::remove, data_head, len, mdata->line, mdata->index);
             auto[new_line, new_point] =
@@ -134,7 +134,7 @@ undo_buffer::undo()
         case undo_type::insert_inplace:
         {
             LOG_WARN("Undoing insertion _inplace_ of [%ld] characters at %lu:%lu: %s",
-                     len, mdata->line, mdata->index, utf32_buf);
+                     len, mdata->line, mdata->index, utf8_buf);
 
             add_undo_impl(undo_type::remove_inplace, data_head, len, mdata->line, mdata->index);
             auto[new_line, new_point] =
@@ -146,7 +146,7 @@ undo_buffer::undo()
         case undo_type::remove:
         {
             LOG_WARN("Undoing remove of [%ld] characters at %lu:%lu: %s",
-                     len, mdata->line, mdata->index, utf32_buf);
+                     len, mdata->line, mdata->index, utf8_buf);
 
             add_undo_impl(undo_type::insert, data_head, len, mdata->line, mdata->index);
             auto[new_line, new_point] =
@@ -158,7 +158,7 @@ undo_buffer::undo()
         case undo_type::remove_inplace:
         {
             LOG_WARN("Undoing remove _inplace_ of [%ld] characters at %lu:%lu: %s",
-                     len, mdata->line, mdata->index, utf32_buf);
+                     len, mdata->line, mdata->index, utf8_buf);
 
             add_undo_impl(undo_type::insert_inplace, data_head, len, mdata->line, mdata->index);
             auto[new_line, new_point] =
@@ -187,11 +187,26 @@ undo_buffer::DEBUG_print_state()
         head -= ((len % 2 == 1 ? len + 1 : len) * sizeof(u32)
                  + sizeof(mm) + sizeof(undo_metadata));
 
+        // TODO: make 1024 a constant
         u8 utf32_buf[1024];
         u32* data_head = reinterpret_cast<u32*>(head + sizeof(undo_metadata));
         auto[_, dest_reached] = utf32_to_utf8(data_head, data_head + len,
                                               utf32_buf, utf32_buf + 1024);
-        *dest_reached = '\0';
+
+        if (dest_reached == utf32_buf + 1024)
+        {
+            (*(dest_reached - 1)) = '\0';
+            (*(dest_reached - 2)) = ']';
+            (*(dest_reached - 3)) = '.';
+            (*(dest_reached - 4)) = '.';
+            (*(dest_reached - 5)) = '.';
+            (*(dest_reached - 6)) = '[';
+        }
+        else
+        {
+            // If we fit in the buffer, just put 0 at the and to print it as asciiz
+            *dest_reached = '\0';
+        }
 
         printf("BUFFER: op %d, at:%lu:%lu characters[%lu]: '%s'\n",
                reinterpret_cast<undo_metadata*>(head)->oper,

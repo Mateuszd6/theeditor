@@ -8,6 +8,18 @@
 
 #include <thread>
 
+// TODO: Handle for multiple buffers.
+enum struct prev_command_type : i32
+{
+    none,
+
+    insert,
+    remove, // Remove with backspace
+    remove_inplace, // Remove with delete
+    paste, // Paste or rotate the killring
+    undo,
+};
+
 namespace g
 {
 
@@ -38,6 +50,8 @@ static bool buffer_is_dirty = true;
 
 static xwindow* tmp_window_hndl;
 
+static prev_command_type prev_comm = prev_command_type::none;
+
 } // namespace g
 
 static void
@@ -55,16 +69,20 @@ handle_key(key pressed_key)
             return;
         }
         else
+            // TODO(NEXT): This is bad. We shouldn't break the undo chain every
+            //             time we invoke other shortcut thatn Undo. This is
+            //             because e.g. Home (move to the idx 0 in line) should
+            //             not reset the undo state!!!!
             g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
-        if(*shortcut_name == "Copy")
+        if (*shortcut_name == "Copy")
         {
             char text[] = "Mateusz";
             g::tmp_window_hndl->set_clipboard_contents(
                 reinterpret_cast<u8*>(text),
                 static_cast<u32>(array_cnt("Mateusz") - 1));
         }
-        else if(*shortcut_name == "Quit")
+        else if (*shortcut_name == "Quit")
         {
             // This is some save exitting code, to make sure we don't leak much.
             LOG_INFO("Exitting...");
@@ -75,119 +93,96 @@ handle_key(key pressed_key)
 
             exit(0);
         }
-        else if(*shortcut_name == "Paste")
+        else if (*shortcut_name == "Paste")
         {
-            u32 buffer[1024];
-
             // TODO: Change so that nicer api is called here!
             g::tmp_window_hndl->load_clipboard_contents();
             if (g::tmp_window_hndl->clip_text)
             {
                 auto text = reinterpret_cast<u8*>(g::tmp_window_hndl->clip_text);
-                auto [_, dest] = utf8_to_utf32(
-                    text, text + g::tmp_window_hndl->clip_size,
-                    buffer, buffer + 1024);
+                auto[utf32_data, utf32_size] =
+                    utf8_to_utf32_allocate(text, text + g::tmp_window_hndl->clip_size);
 
-                g::buf_pt.buffer_ptr
-                    ->undo_buf
-                    .add_undo(undo_type::insert,
-                              buffer, dest - buffer,
-                              g::buf_pt.curr_line, g::buf_pt.curr_idx);
+                ASSERT(g::buf_pt.point_is_valid());
+                auto[succeeded, ret_line, ret_idx] =
+                    g::buf_pt.buffer_ptr->insert(g::buf_pt.curr_line,
+                                                 g::buf_pt.curr_idx,
+                                                 utf32_data,
+                                                 utf32_data + utf32_size);
 
-                // TODO: This could be done with apply_insert.
-                for(auto p = buffer; p != dest; ++p)
-                {
-                    ASSERT(g::buf_pt.point_is_valid());
-
-                    bool added = g::buf_pt.insert(*p);
-                    ASSERT(added);
-                }
+                ASSERT(succeeded); // TODO: Assume success for now.
+                g::buf_pt.curr_line =  ret_line;
+                g::buf_pt.curr_idx = ret_idx;
+                ASSERT(g::buf_pt.point_is_valid());
             }
             else
                 LOG_ERROR("The clipboard is empty!");
+        }
+        else if (*shortcut_name == "Debug Print Undo")
+        {
+            LOG_INFO("Printing undo state: ");
+            g::buf_pt.buffer_ptr->undo_buf.DEBUG_print_state();
+        }
+        else if (*shortcut_name == "Delete Backward")
+        {
+            g::buf_pt.del_backward();
+        }
+        else if (*shortcut_name == "Delete Forward")
+        {
+            g::buf_pt.del_forward();
+        }
+        else if (*shortcut_name == "Insert Tab")
+        {
+            u32 buffer[] = { ' ', ' ', ' ', ' ', };
+            g::buf_pt.insert(buffer, buffer + 4);
+        }
+        else if (*shortcut_name == "Insert Newline")
+        {
+            u32 newline_ch = static_cast<u32>('\n');
+            g::buf_pt.insert(newline_ch);
+        }
+        else if (*shortcut_name == "Move Up")
+        {
+            if(!g::buf_pt.line_up())
+                LOG_WARN("Cannot move up!");
+        }
+        else if (*shortcut_name == "Move Down")
+        {
+            if(!g::buf_pt.line_down())
+                LOG_WARN("Cannot move down!");
+        }
+        else if (*shortcut_name == "Move Left")
+        {
+            if(!g::buf_pt.character_left())
+                LOG_WARN("Cannot move left!");
+        }
+        else if (*shortcut_name == "Move Right")
+        {
+            if(!g::buf_pt.character_right())
+                LOG_WARN("Cannot move right!");
+        }
+        else if (*shortcut_name == "Move End")
+        {
+            if(!g::buf_pt.line_end())
+                LOG_WARN("Cannot move to end!");
+        }
+        else if (*shortcut_name == "Move Home")
+        {
+            if(!g::buf_pt.line_start())
+                LOG_WARN("Cannot move to home!");
         }
         else
             LOG_WARN("Not supported shortcut: %s", shortcut_name->c_str());
     }
     else if (pressed_key.codept == 0)
     {
+        // TODO(NEXT): This should not break the chain, as we don't do anything.
         g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
-        LOG_INFO("[%s] is a special key", keycode_names[pressed_key.keycode]);
-        switch(pressed_key.keycode)
-        {
-            case keycode_values::Escape:
-            {
-                LOG_INFO("Printing undo state: ");
-                g::buf_pt.buffer_ptr->undo_buf.DEBUG_print_state();
-            } break;
-
-            case keycode_values::BackSpace:
-            {
-                g::buf_pt.del_backward();
-            } break;
-
-            // TODO: Undo and buffer pt logic must be merge. Handle the copypaste.
-            case keycode_values::Delete:
-            {
-                g::buf_pt.del_forward();
-            } break;
-
-            case keycode_values::Tab:
-            {
-                u32 buffer[] = { ' ', ' ', ' ', ' ', };
-
-                g::buf_pt.insert(buffer, buffer + 4);
-            } break;
-
-            case keycode_values::Return:
-            {
-                u32 newline_ch = static_cast<u32>('\n');
-                g::buf_pt.insert(newline_ch);
-            } break;
-
-            case keycode_values::Up:
-            {
-                if(!g::buf_pt.line_up())
-                    LOG_WARN("Cannot move up!");
-            } break;
-
-            case keycode_values::Down:
-            {
-                if(!g::buf_pt.line_down())
-                    LOG_WARN("Cannot move down!");
-            } break;
-
-            case keycode_values::Left:
-            {
-                if(!g::buf_pt.character_left())
-                    LOG_WARN("Cannot move left!");
-            } break;
-
-            case keycode_values::Right:
-            {
-                if(!g::buf_pt.character_right())
-                    LOG_WARN("Cannot move right!");
-            } break;
-
-            case keycode_values::End:
-            {
-                if(!g::buf_pt.line_end())
-                    LOG_WARN("Cannot move to end!");
-            } break;
-
-            case keycode_values::Home:
-            {
-                if(!g::buf_pt.line_start())
-                    LOG_WARN("Cannot move to home!");
-            } break;
-
-            default:
-            {
-            } break;
-        }
+        LOG_INFO("[%s] is a special key with no shortcut assigned to it. Ignored.",
+                 keycode_names[pressed_key.keycode]);
     }
-    else
+    else if (pressed_key.codept != 0)
     {
         g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
 
@@ -202,8 +197,6 @@ handle_event(xwindow* win)
     XEvent ev;
     XNextEvent(win->dpy, &ev);
 
-
-    LOG_ERROR("EVENT: -> %d", ev.type);
     switch(ev.type)
     {
         case ConfigureNotify:
@@ -247,19 +240,16 @@ handle_event(xwindow* win)
             // TODO: Figure out this event.
         } break;
 
+        // TODO: Figure out the difference between Expose and FocusIn/FocusOut
 #if 0
         case FocusIn:
         {
             LOG_WARN("__ FocusIn __");
-
-            // TODO: Figure out this event.
         } break;
 
         case FocusOut:
         {
             LOG_WARN("__ FocusOut __");
-
-            // TODO: Figure out this event.
         } break;
 #endif
 
@@ -375,7 +365,7 @@ handle_event(xwindow* win)
 
         default:
         {
-            LOG_ERROR("__ UNKNOWN: %d __", ev.type);
+            LOG_WARN("__ UnknowEvnet: %d __", ev.type);
         } break;
     }
 }
@@ -422,8 +412,7 @@ draw_textline_aux(xwindow& win, bool is_current,
     if (is_current)
     {
         win.draw_rect(framex, basey - g::font_height + g::font_descent,
-                      framew, g::font_height,
-                      10);
+                      framew, g::font_height, 10);
 
     }
 
@@ -481,6 +470,8 @@ draw_textline_aux(xwindow& win, bool is_current,
 int
 main()
 {
+    auto init_start = chrono::system_clock::now();
+
 #if 0 // Filesystem basic api tests.
     {
         fs::path p{  };
@@ -569,13 +560,21 @@ main()
     g::font_descent = win.font->descent;
     g::font_height = win.font->height;
 
+    auto init_elapsed = chrono::system_clock::now() - init_start;
+    LOG_INFO("Init time: %dms",
+             static_cast<int>(chrono::duration_cast<chrono::milliseconds>(init_elapsed).count()));
+
     while(1)
     {
         while(XPending(win.dpy))
             handle_event(&win);
 
-#if 0 // DEBUG: Use this to make sure the bug is not an issue with reusing the canvas
-        win.canvas = XCreatePixmap(win.dpy, win.win, win.width, win.height, DefaultDepth(win.dpy, win.scr));
+        // NOTE(DEBUG): Use this to make sure the bug is not an issue with
+        // reusing the canvas
+#if 0
+        win.canvas = XCreatePixmap(win.dpy, win.win,
+                                   win.width, win.height,
+                                   DefaultDepth(win.dpy, win.scr));
         win.draw = XftDrawCreate(win.dpy, win.canvas, win.vis, win.cmap);
 #endif
 
@@ -609,7 +608,7 @@ main()
             // TODO: Make sure we are not drawing out-of-bounds, because 1. We
             //       loose a lot of time when doing that, 2. It is bugprone.
             // TODO: Merge it somehow.
-            if(g::buf_pt.starting_from_top)
+            if (g::buf_pt.starting_from_top)
                 for(auto k = 0; k < no_lines; ++k)
                 {
                     auto line_to_draw = k + g::buf_pt.first_line;

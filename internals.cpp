@@ -10,6 +10,18 @@ namespace g
         { key{ 0, Escape, ctrl }, "Quit" },
         { key{ 0, keycode_values::Tab, ctrl }, "Reindent" },
         { key{ u32(' '), 0, ctrl }, "Set Mark" },
+
+        { key{ 0, Escape, 0 }, "Debug Print Undo" },
+        { key{ 0, BackSpace, 0 }, "Delete Backward" },
+        { key{ 0, Delete, 0 }, "Delete Forward" },
+        { key{ 0, Tab, 0 }, "Insert Tab" },
+        { key{ 0, Return, 0 }, "Insert Newline" },
+        { key{ 0, Up, 0 }, "Move Up" },
+        { key{ 0, Down, 0 }, "Move Down" },
+        { key{ 0, Left, 0 }, "Move Left" },
+        { key{ 0, Right, 0 }, "Move Right" },
+        { key{ 0, End, 0 }, "Move End" },
+        { key{ 0, Home, 0 }, "Move Home" },
     };
 }
 

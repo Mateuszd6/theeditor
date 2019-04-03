@@ -23,10 +23,10 @@ struct text_buffer
 
     void grow_gap();
 
-    // *_impl fucntions do the same as fucntions without the suffix, but does
-    // *not record undo state. Thus should only be used in the internal
-    // *API. Regular fucntions call these, and then if it succeeded, store info
-    // *about the operation in the undo buffer.
+    // _impl fucntions do the same as fucntions without the suffix, but does not
+    // record undo state. Thus should only be used in the internal API. Regular
+    // fucntions call these, and then if it succeeded, store info about the
+    // operation in the undo buffer.
     std::tuple<bool, mm, mm> insert_character_impl(mm line, mm point, u32 character);
     std::tuple<bool, mm, mm> insert_range_impl(mm line, mm point, u32* begin, u32* end);
     std::tuple<bool, mm, mm> insert_newline_impl(mm line, mm point);
@@ -51,7 +51,6 @@ struct text_buffer
     mm gap_size() const;
     gap_buffer* get_line(mm line) const;
 
-    // TODO: They are horrible.
     std::tuple<mm, mm> apply_insert(u32* data, mm len, mm line, mm index);
     std::tuple<mm, mm> apply_remove(u32* data, mm len, mm line, mm index);
 

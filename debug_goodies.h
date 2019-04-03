@@ -134,8 +134,9 @@
     do {                                                                 \
         DG_FPRINTF(DG_LOG_FILE, "%s:%d: ", __FILE__, __LINE__);          \
         DG_INT_START_COLOR(COLOR_ID);                                    \
-        DG_FPRINTF(DG_LOG_FILE, "%s: ", #LOG_TYPE);                      \
+        DG_FPRINTF(DG_LOG_FILE, "%s:", #LOG_TYPE);                       \
         DG_INT_RESET_COLOR();                                            \
+        DG_FPRINTF(DG_LOG_FILE, " ");                                    \
         DG_INT_DATETIME_TO_FILE(DG_LOG_FILE);                            \
         DG_FPRINTF(DG_LOG_FILE, MSG, ##__VA_ARGS__);                     \
         DG_FPRINTF(DG_LOG_FILE, "\n");                                   \

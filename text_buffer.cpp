@@ -1,4 +1,4 @@
-#include "cstdio"
+#include <cstdio>
 
 // TODO(Cleanup): Globals.
 namespace g
@@ -159,10 +159,8 @@ text_buffer::insert_newline_impl(mm line, mm point)
     auto edited_line = get_line(line);
     auto created_line = get_line(line + 1);
     for(auto i = point; i < edited_line->size(); ++i)
-    {
-        // TODO: Don't insert characters one-by-one here.
         created_line->insert(i - point, edited_line->get(i));
-    }
+
     edited_line->del_to_end(point);
 
     return { true, line + 1, 0 };
@@ -565,17 +563,18 @@ bool buffer_point::jump_up(mm number_of_lines)
 bool buffer_point::jump_down(mm number_of_lines)
 {
     auto last_line_index = buffer_ptr->size() - 1;
-    auto goal_idx = (last_line_idx == -1
-        ? curr_idx
-        : (curr_idx > static_cast<mm>(last_line_idx) ? curr_idx : last_line_idx));
+    auto goal_idx =
+        (last_line_idx == -1
+         ? curr_idx : (curr_idx > static_cast<mm>(last_line_idx)
+                       ? curr_idx : last_line_idx));
 
     if(curr_line == last_line_index)
         return false;
     else
     {
         curr_line = (curr_line + number_of_lines > last_line_index
-            ? last_line_index
-            : curr_line + number_of_lines);
+                     ? last_line_index
+                     : curr_line + number_of_lines);
         first_line = curr_line;
         starting_from_top = true;
 
