@@ -446,8 +446,6 @@ draw_textline_aux(xwindow& win, bool is_current,
                   i32 basex, i32 basey,
                   strref* refs)
 {
-    // TODO: This horrible part is used to draw the current line highlight and
-    //       the caret. Simplify!
     if (is_current)
     {
         win.draw_rect(framex, basey - g::font_height + g::font_descent,
@@ -713,7 +711,7 @@ main()
 
                     auto refs = g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs_();
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
-                                      16, static_cast<i16>(win.width - 32 + 1) - 1,
+                                      marg_left, buf_width - 1,
                                       basex, basey,
                                       refs.data());
                 }
@@ -733,12 +731,12 @@ main()
                     //       becuase of the offset and each marigin adds 1
                     //       because we do not draw on them.
                     auto basex = marg_left + 2;
-                    auto basey = win.height - (marg_top - 1) - (marg_bottom - 1) + 1 -
+                    auto basey = buf_heigth + 3 -
                         ((no_lines - 1) - k) * g::font_height - g::font_descent;
 
                     auto refs = g::buf_pt.buffer_ptr->get_line(line_to_draw)->to_str_refs_();
                     draw_textline_aux(win, g::buf_pt.curr_line == line_to_draw,
-                                      16, static_cast<i16>(win.width - 32 + 1) - 1,
+                                      marg_left, buf_width - 1,
                                       basex, basey,
                                       refs.data());
                 }
