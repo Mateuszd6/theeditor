@@ -73,7 +73,6 @@ handle_key(key pressed_key)
         else
         {
             g::prev_comm = prev_command_type::none;
-            g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
         }
 
         if (*shortcut_name == "Copy")
@@ -214,9 +213,6 @@ handle_key(key pressed_key)
     }
     else if (pressed_key.codept == 0)
     {
-        // TODO(NEXT): Should this break the chain? We don't do anything.
-        g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
-
         LOG_INFO("[%s] is a special key with no shortcut assigned to it. Ignored.",
                  keycode_names[pressed_key.keycode]);
 
@@ -224,8 +220,6 @@ handle_key(key pressed_key)
     }
     else if (pressed_key.codept != 0)
     {
-        g::buf_pt.buffer_ptr->undo_buf.break_undo_chain();
-
         LOG_INFO("0x%x is regular utf32 key", pressed_key.codept);
         g::buf_pt.insert(pressed_key.codept);
 
@@ -618,11 +612,6 @@ main()
         if(g::buffer_is_dirty)
         {
             auto start = chrono::system_clock::now();
-
-            LOG_ERROR("FIRST = %ld, CURR = %ld [%c]",
-                      g::buf_pt.first_line,
-                      g::buf_pt.curr_line,
-                      g::buf_pt.starting_from_top ? 'v' : '^');
 
             // This is the size of the main buffer relative to the screen.
             i16 marg_left = 5;

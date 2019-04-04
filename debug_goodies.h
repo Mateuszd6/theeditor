@@ -32,6 +32,7 @@
 // * DG_LOG_LVL - This defines the verbosity level for the logging API.
 //       Possible values (If not defined, default is the first one):
 //         DG_LOG_LVL_ALL   - Display all messages.
+//         DG_LOG_LVL_INFO  - Display only infos, warrnings and errors.
 //         DG_LOG_LVL_WARN  - Display only warrnings and errors.
 //         DG_LOG_LVL_ERROR - Display errors only.
 
@@ -368,12 +369,9 @@
 
 // Define to display all logs.
 #define DG_LOG_LVL_ALL (0)
-
-// Print only warrnings, errors, etc...
-#define DG_LOG_LVL_WARN (1)
-
-// Ignore most logs, warrnings included. Print only Errors and Fatals.
-#define DG_LOG_LVL_ERROR (2)
+#define DG_LOG_LVL_INFO (1)
+#define DG_LOG_LVL_WARN (2)
+#define DG_LOG_LVL_ERROR (3)
 
 #ifndef DG_LOG_LVL
   #define DG_LOG_LVL (0)
@@ -387,20 +385,13 @@
         }                                                                \
     } while(0)
 
-#if defined(DEBUG) && defined(LOGGING)
-  #define LOG_TRACE(MSG, ...) DG_INT_LOG_AUX(MSG, TRACE, 0, DG_LOG_LVL, -1, ##__VA_ARGS__)
-  #define LOG_DEBUG(MSG, ...) DG_INT_LOG_AUX(MSG, DEBUG, 0, DG_LOG_LVL, -1, ##__VA_ARGS__)
-#elif defined(LOGGING)
-  #define LOG_TRACE(IGNORE, ...) ((void)0)
-  #define LOG_DEBUG(IGNORE, ...) ((void)0)
-#else
-#endif
-
 #ifdef LOGGING
-  #define LOG_INFO(MSG, ...) DG_INT_LOG_AUX(MSG, INFO, 0, DG_LOG_LVL, -1, ##__VA_ARGS__)
-  #define LOG_WARN(MSG, ...) DG_INT_LOG_AUX(MSG, WARN, 1, DG_LOG_LVL, DG_INT_YELLOW_COLOR_ID, ##__VA_ARGS__)
-  #define LOG_ERROR(MSG, ...) DG_INT_LOG_AUX(MSG, ERROR, 2, DG_LOG_LVL, DG_INT_RED_COLOR_ID, ##__VA_ARGS__)
-  #define LOG_FATAL(MSG, ...) DG_INT_LOG_AUX(MSG, FATAL, 2, DG_LOG_LVL, DG_INT_RED_COLOR_ID, ##__VA_ARGS__)
+  #define LOG_TRACE(MSG, ...) DG_INT_LOG_AUX(MSG, TRACE, DG_LOG_LVL_ALL, DG_LOG_LVL, -1, ##__VA_ARGS__)
+  #define LOG_DEBUG(MSG, ...) DG_INT_LOG_AUX(MSG, DEBUG, DG_LOG_LVL_ALL, DG_LOG_LVL, -1, ##__VA_ARGS__)
+  #define LOG_INFO(MSG, ...) DG_INT_LOG_AUX(MSG, INFO, DG_LOG_LVL_INFO, DG_LOG_LVL, -1, ##__VA_ARGS__)
+  #define LOG_WARN(MSG, ...) DG_INT_LOG_AUX(MSG, WARN, DG_LOG_LVL_WARN, DG_LOG_LVL, DG_INT_YELLOW_COLOR_ID, ##__VA_ARGS__)
+  #define LOG_ERROR(MSG, ...) DG_INT_LOG_AUX(MSG, ERROR, DG_LOG_LVL_ERROR, DG_LOG_LVL, DG_INT_RED_COLOR_ID, ##__VA_ARGS__)
+  #define LOG_FATAL(MSG, ...) DG_INT_LOG_AUX(MSG, FATAL, DG_LOG_LVL_ERROR, DG_LOG_LVL, DG_INT_RED_COLOR_ID, ##__VA_ARGS__)
 #endif
 
 #endif // DEBUG_GOODIES_H

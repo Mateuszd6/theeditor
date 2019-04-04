@@ -2,7 +2,7 @@
 #define CONFIG_HPP
 
 #define LOGGING
-// #define DG_LOG_LVL DG_LOG_LVL_ERROR
+#define DG_LOG_LVL DG_LOG_LVL_INFO
 #define DG_USE_COLORS 1
 #include "debug_goodies.h"
 
@@ -102,6 +102,8 @@ namespace intr
         return __builtin_popcountll(val);
     }
 #elif defined COMPILER_MSVC
+    // Looks like msvc does not support it as gcc does. There is __assume macro
+    // but it works a bit differently.
     static inline bool likely(bool expr_result)
     {
         return expr_result;
@@ -119,13 +121,13 @@ namespace intr
     }
 
     // TODO: clz and clz can be achieved with bit scan forward.
-    static inline int clz32(u32 val) { static_assert("clz32 - not implemented"); }
-    static inline int clz64(u64 val) { static_assert("clz64 - not implemented"); }
-    static inline int ctz32(u32 val) { static_assert("ctz32 - not implemented"); }
-    static inline int ctz64(u64 val) { static_assert("ctz64 - not implemented"); }
+    static inline int clz32(u32 val) { static_assert("clz32 not implemented"); }
+    static inline int clz64(u64 val) { static_assert("clz64 not implemented"); }
+    static inline int ctz32(u32 val) { static_assert("ctz32 not implemented"); }
+    static inline int ctz64(u64 val) { static_assert("ctz64 not implemented"); }
     inline inline int popcnt32(u32 val) { return static_cast<int>(__popcnt(val)); }
     inline inline int popcnt64(u64 val) { return static_cast<int>(__popcnt64(val)); }
-#else // Looks like msvc does not support it.
+#else
 #  error "Intrinsics probably won't work for You, as the compiler is unknown."
 #endif
 }
@@ -133,7 +135,7 @@ namespace intr
 // Returns the number of elemensts in c-style array.
 template<typename T, mm n>
 constexpr mm
-array_cnt( T (&)[n] )
+array_cnt(T (&)[n])
 {
     return n;
 }
@@ -148,9 +150,13 @@ cstr_cnt(const char (&)[n])
 }
 
 #include <limits>
+#include <type_traits>
 
 // TODO: Enable if integral. Different for real numbers.
-template<typename FROM_TYPE, typename TO_TYPE>
+template<typename FROM_TYPE,
+         typename TO_TYPE,
+         typename = typename std::enable_if<std::is_integral<FROM_TYPE>::value>::type,
+         typename = typename std::enable_if<std::is_integral<TO_TYPE>::value>::type>
 static inline constexpr TO_TYPE
 safe_trunc(FROM_TYPE val)
 {

@@ -49,7 +49,6 @@ struct undo_buffer
     u8* redo_head = &(buffer[0]);
     undo_seq_state curr_state = undo_seq_state::none;
 
-    void break_undo_chain();
     void add_undo_impl(undo_type type, u32 const* data, mm len, u64 line, u64 index);
     void add_undo(undo_type type, u32 const* data, mm len, u64 line, u64 index);
 

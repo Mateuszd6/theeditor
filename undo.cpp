@@ -1,12 +1,6 @@
 #include "undo.hpp"
 
 void
-undo_buffer::break_undo_chain()
-{
-    redo_head = undo_head;
-}
-
-void
 undo_buffer::add_undo_impl(undo_type type, u32 const* data, mm len, u64 line, u64 index)
 {
     u8* new_head = undo_head;
@@ -42,6 +36,9 @@ undo_buffer::add_undo(undo_type type, u32 const* data, mm len, u64 line, u64 ind
     LOG_WARN("Curr state: %d, type: %d", curr_state, type);
 
     // Check if we are in the sequence (e.g. character insertion sequence).
+    // TODO: Don't check for updating sequences here. Below should be done in
+    //       the insert fucntion, by checking prev command and undo command and
+    //       by this determine if more text can be appended to the undo info.
     if(curr_state == undo_seq_state::insert && type == undo_type::insert)
     {
         auto[mdata_ptr, data_ptr, len_ptr] = get_elem_under(undo_head);
@@ -81,15 +78,12 @@ undo_buffer::add_undo(undo_type type, u32 const* data, mm len, u64 line, u64 ind
         }
     }
 
-    // If we haven't hit any of the conditions before, just set this one to none.
+    // If we haven't hit any of the conditions before, just set this one to
+    // none.
     curr_state = undo_seq_state::none;
-
     add_undo_impl(type, data, len, line, index);
 
-    // TODO: can break_undo_chain() be at the top?
-    break_undo_chain();
-
-    if(type == undo_type::insert)
+    if (type == undo_type::insert)
     {
         curr_state = undo_seq_state::insert;
     }
@@ -98,6 +92,10 @@ undo_buffer::add_undo(undo_type type, u32 const* data, mm len, u64 line, u64 ind
 void
 undo_buffer::undo()
 {
+    // TODO: Make sure it is fine here!
+    if (g::prev_comm != prev_command_type::undo)
+        redo_head = undo_head;
+
     if (redo_head == &(buffer[0]))
     {
         LOG_ERROR("No more undo information.");

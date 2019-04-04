@@ -85,7 +85,6 @@ void gap_buffer::reserve_gap(mm n)
 void gap_buffer::insert(mm point, u32 character)
 {
     ASSERT(point <= size());
-    LOG_INFO("Inserting 1 character");
 
     // If after the insert the gap would be less that we permit, realloc.
     if (gap_size() - 1 <= GAP_BUF_MIN_SIZE_BEFORE_MEM_EXPAND)
@@ -102,8 +101,6 @@ void gap_buffer::insert(mm point, u32 character)
 void gap_buffer::insert_range(mm point, u32 const* begin, u32 const* end)
 {
     ASSERT(point <= size());
-
-    LOG_INFO("Inserting range of %ld characters", end - begin);
 
     mm check = gap_size() - (end - begin + 1);
     (void(check));
