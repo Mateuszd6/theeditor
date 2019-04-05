@@ -124,9 +124,57 @@ text_buffer::insert_range_impl(mm line, mm point, u32* begin, u32* end)
     return { true, line, point + (end - begin) };
 }
 
+// TODO: move somewhere.
+static inline std::tuple<undo_metadata*, u32*, mm*>
+get_elem_under(u8* head)
+{
+    mm* len_ptr = reinterpret_cast<mm*>(head) - 1;
+    u32* data_ptr = reinterpret_cast<u32*>(len_ptr) - ((*len_ptr % 2 == 0) ? (*len_ptr) : (*len_ptr + 1));
+    undo_metadata* mdata_ptr = reinterpret_cast<undo_metadata*>(data_ptr) - 1;
+
+    return { mdata_ptr, data_ptr, len_ptr };
+}
+
 std::tuple<bool, mm, mm>
 text_buffer::insert(mm line, mm point, u32* begin, u32* end)
 {
+    if (g::prev_comm == prev_command_type::insert)
+    {
+        // TODO: Handle the case, when nothing is in the undo buffer(is it possible)?
+        auto[mdata_ptr, data_ptr, len_ptr] = get_elem_under(undo_buf.undo_head);
+        LOG_INFO("Current head is { (%lu, %lu), %c, %ld}",
+                 mdata_ptr->line, mdata_ptr->index,
+                 *data_ptr < 255 ? static_cast<char>(*data_ptr) : '?',
+                 *len_ptr);
+
+        u32* last_ch_ptr = data_ptr + (*len_ptr - 1);
+
+        if (static_cast<mm>(mdata_ptr->line) == line
+            && static_cast<mm>(mdata_ptr->index + (*len_ptr)) == point)
+        {
+            // TODO(NEXT): Before doing this, check the conditions (make it
+            //             similar to those in ST3).
+
+            mm len = end - begin;
+            mm old_len = *len_ptr;
+            mm new_len = old_len + len;
+            last_ch_ptr++;
+            for (mm i = 0; i < len; ++i)
+                *last_ch_ptr++ = *(begin + i);
+            if (new_len % 2 == 1)
+                last_ch_ptr++;
+
+            *(reinterpret_cast<mm*>(last_ch_ptr)) = new_len;
+            undo_buf.undo_head = reinterpret_cast<u8*>(last_ch_ptr) + sizeof(mm);
+
+            LOG_ERROR("Text has been appended. ");
+
+            // This is the same call as below, can be skipped/merged.
+            auto[ret_line, ret_point] = apply_insert(begin, end - begin, line, point);
+            return { true, ret_line, ret_point };
+        }
+    }
+
     auto[ret_line, ret_point] = apply_insert(begin, end - begin, line, point);
     undo_buf.add_undo(undo_type::insert, begin, end - begin, line, point);
 

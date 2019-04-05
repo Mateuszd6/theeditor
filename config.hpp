@@ -132,9 +132,69 @@ namespace intr
 #endif
 }
 
+static inline bool
+is_pow2(u64 value)
+{
+    return (((value & ~(value - 1)) == value) ? value : 0);
+}
+
+#if defined COMPILER_GCC || defined COMPILER_CLANG
+// For compilerz like GCC and CLANG we know that __builtin_clz is well defined
+// and intr::clz will work fast and simply as it is not just a hack to make
+// similar effects.
+static inline i32
+log2_floor(u64 value)
+{
+    // log2 of 0 is neg inf, so the result is undefined!
+    ASSERT(value > 0);
+
+    return (static_cast<i32>(8 * sizeof(u64) - intr::clz64(value) - 1));
+}
+#else
+// For other compilerz there is a nice alternative.
+static inline i32
+log2_floor(u64 value)
+{
+    // log2 of 0 is neg inf, so the result is undefined!
+    ASSERT(value > 0);
+
+    const int tab64[64] = {
+        63,  0, 58,  1, 59, 47, 53,  2,
+        60, 39, 48, 27, 54, 33, 42,  3,
+        61, 51, 37, 40, 49, 18, 28, 20,
+        55, 30, 34, 11, 43, 14, 22,  4,
+        62, 57, 46, 52, 38, 26, 32, 41,
+        50, 36, 17, 19, 29, 10, 13, 21,
+        56, 45, 25, 31, 35, 16,  9, 12,
+        44, 24, 15,  8, 23,  7,  6,  5
+    };
+
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    value |= value >> 32;
+    return tab64[(static_cast<uint64_t>((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
+}
+#endif
+
+static inline i32
+log2_ceil(u64 value)
+{
+    // log2 of 0 is neg inf, so the result is undefined!
+    ASSERT(value > 0);
+
+    i32 retval = log2_floor(value);
+    if (!is_pow2(value))
+        retval++;
+
+    return retval;
+}
+
 // Returns the number of elemensts in c-style array.
 template<typename T, mm n>
-constexpr mm
+constexpr static inline mm
 array_cnt(T (&)[n])
 {
     return n;
@@ -143,7 +203,7 @@ array_cnt(T (&)[n])
 // Returns the number of elemensts in the cstyle-string,
 // DOES NOT COUNT NULL TERMINATOR. THATS THE DIFFERENCE BETWEEN array_cnt.
 template<mm n>
-constexpr mm
+constexpr static inline mm
 cstr_cnt(const char (&)[n])
 {
     return n - 1;
@@ -152,7 +212,6 @@ cstr_cnt(const char (&)[n])
 #include <limits>
 #include <type_traits>
 
-// TODO: Enable if integral. Different for real numbers.
 template<typename FROM_TYPE,
          typename TO_TYPE,
          typename = typename std::enable_if<std::is_integral<FROM_TYPE>::value>::type,
