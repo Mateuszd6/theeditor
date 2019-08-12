@@ -597,8 +597,7 @@ main()
 
     while(1)
     {
-        while(XPending(win.dpy))
-            handle_event(&win);
+        handle_event(&win);
 
         // NOTE(DEBUG): Use this to make sure the bug is not an issue with
         // reusing the canvas
