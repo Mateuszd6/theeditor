@@ -231,7 +231,7 @@ static void
 handle_event(xwindow* win)
 {
     XEvent ev;
-    XNextEvent(win->dpy, &ev);
+    XNextEvent(win->dpy, &ev); // NOTE: could use XNextEventTimed
 
     switch(ev.type)
     {
